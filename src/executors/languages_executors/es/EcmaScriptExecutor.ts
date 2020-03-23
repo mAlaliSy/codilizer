@@ -9,7 +9,7 @@ import {ECMAScriptVisitor} from "../testts/ECMAScriptVisitor";
 import {
     AssignmentExpressionContext, AssignmentOperatorExpressionContext,
     BitNotExpressionContext, ExpressionSequenceContext,
-    ExpressionStatementContext, IdentifierExpressionContext,
+    ExpressionStatementContext, IdentifierExpressionContext, IfStatementContext,
     StatementContext, StatementListContext
 } from "../testts/ECMAScriptParser";
 import ErrorHandler from "../../errorhandler/ErrorHandler";
@@ -68,7 +68,7 @@ export default class JavaScriptExecutor extends ECMAScriptVisitor.ECMAScriptVisi
         console.log("After creating");
         // this.visitStatementList(this.parser.statementList());
         // let tree = this.parser.parse();
-        let result = this.visitStatementList(this.parser.statementList());
+        let result = this.visitStatement(this.parser.statement());
         console.log("Result: " + result);
         console.log("Actions: ", this.actions);
         return this.actions;
@@ -258,7 +258,6 @@ export default class JavaScriptExecutor extends ECMAScriptVisitor.ECMAScriptVisi
     }
 
     visitSingleExpression(ctx: any): ExpressionResult {
-        console.log("Exeuting single expression ");
         if (ctx instanceof Parser.ECMAScriptParser.MultiplicativeExpressionContext) return this.visitMultiplicativeExpression(ctx);
         else if (ctx instanceof Parser.ECMAScriptParser.AdditiveExpressionContext) return this.visitAdditiveExpression(ctx);
         else if (ctx instanceof Parser.ECMAScriptParser.BitShiftExpressionContext) return this.visitBitShiftExpression(ctx);
@@ -282,6 +281,10 @@ export default class JavaScriptExecutor extends ECMAScriptVisitor.ECMAScriptVisi
     visitStatement(ctx: StatementContext): any {
         if (ctx.expressionStatement()) {
             this.visitExpressionStatement(ctx.expressionStatement()!!);
+        }else if(ctx.block()){
+            this.visitBlock(ctx.block());
+        }else if(ctx.ifStatement()){
+            this.visitIfStatement(ctx.ifStatement());
         }
     }
 
@@ -308,8 +311,6 @@ export default class JavaScriptExecutor extends ECMAScriptVisitor.ECMAScriptVisi
             this.errorHandler.handleError(new ExecutionError(true, "Only variables are assignable"));
             return;
         }
-        console.log("EXPR ASSIGN:");
-        console.log(expr);
         let valueExp = this.visitExpressionSequence(ctx.expressionSequence());
         let value;
         if (valueExp.type === ExpressionResultType.VARIABLE) {
@@ -348,12 +349,31 @@ export default class JavaScriptExecutor extends ECMAScriptVisitor.ECMAScriptVisi
     }
 
 
-    // visitBlock(ctx: BlockContext) : any {}
+    visitBlock(ctx: any) : any {
+        this.activeSymbolTable = new SymbolTable(this.activeSymbolTable);
+        let statementList = ctx.statementList();
+        if(statementList)
+            this.visitStatementList(statementList);
+        this.activeSymbolTable = this.activeSymbolTable.parent!!;
+    }
+
+    visitIfStatement(ctx:any) : any {
+        let expressions = ctx.expressionSequence().singleExpression();
+        let evaluatTrue = false;
+        expressions.forEach((exp:any)=> evaluatTrue = evaluatTrue || this.visitSingleExpression(exp).value);
+        if(evaluatTrue){
+            if(ctx.statement().length > 0)
+                this.visitStatement(ctx.statement()[0])
+        }else {
+            if(ctx.statement().length > 1)
+                this.visitStatement(ctx.statement()[1]);
+        }
+    }
+
     // visitForStatement(ctx: ForStatementContext) : any {}
     // visitForVarInStatement(ctx: ForVarInStatementContext) : any {}
     // visitForVarStatement(ctx: ForVarStatementContext) : any {}
     // visitIdentifierName(ctx: IdentifierNameContext) : any {}
-    // visitIfStatement(ctx: IfStatementContext) : any {}
     // visitNotExpression(ctx: NotExpressionContext) : any {}
     // visitPostDecreaseExpression(ctx: PostDecreaseExpressionContext) : any {}
     // visitPostIncrementExpression(ctx: PostIncrementExpressionContext) : any {}
@@ -452,7 +472,7 @@ export default class JavaScriptExecutor extends ECMAScriptVisitor.ECMAScriptVisi
 }
 
 
-let source = "x = 10; y = 4 + x; z = y * 3";
+let source = "if(10 + 4 < 4)\n{ x = 10; y = 4 + x; z = y * 3; }\nelse{j = 'EVALUATED TO FALSE';}";
 let executor = new JavaScriptExecutor(source, new class implements ErrorHandler {
     handleError(error: ExecutionError): void {
         console.error(error.message);
