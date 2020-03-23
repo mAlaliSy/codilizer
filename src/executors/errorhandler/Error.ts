@@ -1,4 +1,4 @@
-export default class Error{
+export default class ExecutionError{
     fatal:boolean;
     message: string;
 

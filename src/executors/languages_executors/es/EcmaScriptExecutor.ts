@@ -4,20 +4,55 @@ import EvaluateExpressionAction from "../../actions/EvaluateExpressionAction";
 import Parser from "./parser/ECMAScriptParser";
 
 import Executor from "../../Executor";
+import SymbolTable from "./SymbolTable";
+import {ECMAScriptVisitor} from "../testts/ECMAScriptVisitor";
+import {
+    AssignmentExpressionContext, AssignmentOperatorExpressionContext,
+    BitNotExpressionContext, ExpressionSequenceContext,
+    ExpressionStatementContext, IdentifierExpressionContext,
+    StatementContext, StatementListContext
+} from "../testts/ECMAScriptParser";
+import ErrorHandler from "../../errorhandler/ErrorHandler";
+import ExecutionError from "../../errorhandler/Error";
+import AssignmentAction from "../../actions/AssignmentAction";
 
 const antlr4 = require('antlr4/index');
 const ECMAScriptLexer = require("./parser/ECMAScriptLexer");
 const ECMAScriptVisitor = require("./parser/ECMAScriptVisitor");
 
-export default class JavaScriptExecutor extends ECMAScriptVisitor.ECMAScriptVisitor {
+enum ExpressionResultType {
+    VARIABLE,
+    VALUE
+}
+
+class ExpressionResult {
+    type: ExpressionResultType;
+    value: any;
+
+    constructor(type: ExpressionResultType, value: any) {
+        this.type = type;
+        this.value = value;
+    }
+}
+
+export default class JavaScriptExecutor extends ECMAScriptVisitor.ECMAScriptVisitor implements ECMAScriptVisitor<any> {
     lexer: any;
     parser: any;
     actions: any = [];
     source: string;
+    globalSymbolTable: SymbolTable;
+    activeSymbolTable: SymbolTable;
+    errorHandler: ErrorHandler;
 
-    constructor(source: string) {
+
+    constructor(source: string, errorHandler: ErrorHandler) {
         super();
         this.source = source;
+        this.globalSymbolTable = new SymbolTable();
+        this.activeSymbolTable = this.globalSymbolTable;
+
+        this.errorHandler = errorHandler;
+
         let inputStream = new antlr4.InputStream(this.source);
         this.lexer = new ECMAScriptLexer.ECMAScriptLexer(inputStream);
 
@@ -33,17 +68,40 @@ export default class JavaScriptExecutor extends ECMAScriptVisitor.ECMAScriptVisi
         console.log("After creating");
         // this.visitStatementList(this.parser.statementList());
         // let tree = this.parser.parse();
-        let result = this.visitSingleExpression(this.parser.singleExpression());
+        let result = this.visitStatementList(this.parser.statementList());
         console.log("Result: " + result);
         console.log("Actions: ", this.actions);
         return this.actions;
         // return this.actions;
     }
 
-    visitBinary(ctx: any, op: string): any {
+    visitBinary(ctx: any, op: string): ExpressionResult {
         console.log("Evluate binary: op: " + op);
-        const left = this.visitSingleExpression(ctx.singleExpression()[0]);
-        const right = this.visitSingleExpression(ctx.singleExpression()[1]);
+        const leftExp = this.visitSingleExpression(ctx.singleExpression()[0]);
+        const rightExp = this.visitSingleExpression(ctx.singleExpression()[1]);
+        console.log("Left expr: ", leftExp);
+        console.log("Right expr: ", rightExp);
+        let left, right;
+        if (leftExp.type === ExpressionResultType.VARIABLE) {
+            left = this.activeSymbolTable.getValue(leftExp.value);
+            console.log("LEFT FROM SYMBOL: ", left);
+            if (left === undefined) this.errorHandler.handleError(new ExecutionError(true, `${leftExp.value} is not defined`))
+            left = left.value;
+        } else {
+            left = leftExp.value;
+        }
+
+        if (rightExp.type === ExpressionResultType.VARIABLE) {
+            right = this.activeSymbolTable.getValue(rightExp.value);
+            if (right === undefined) this.errorHandler.handleError(new ExecutionError(true, `${rightExp.value} is not defined`));
+            right = right.value;
+        } else {
+            right = rightExp.value;
+        }
+
+        console.log("Left: ", left);
+        console.log("Right: ", right);
+
         let result;
         switch (op) {
             case '+':
@@ -108,7 +166,7 @@ export default class JavaScriptExecutor extends ECMAScriptVisitor.ECMAScriptVisi
                 break;
         }
         this.actions.push(new EvaluateExpressionAction(ctx.start.line, left + " " + op + " " + right, result));
-        return result;
+        return new ExpressionResult(ExpressionResultType.VALUE, result);
     }
 
     visitAdditiveExpression(ctx: any): any {
@@ -183,133 +241,192 @@ export default class JavaScriptExecutor extends ECMAScriptVisitor.ECMAScriptVisi
 
     visitLiteral(ctx: any): any {
         if (ctx.NullLiteral()) return null;
-        else if (ctx.BooleanLiteral()) return ctx.BooleanLiteral()?.getText() === 'true';
-        else if (ctx.StringLiteral()) return ctx.StringLiteral()?.getText();
+        else if (ctx.BooleanLiteral()) return new ExpressionResult(ExpressionResultType.VALUE, ctx.BooleanLiteral()?.getText() === 'true');
+        else if (ctx.StringLiteral()) return new ExpressionResult(ExpressionResultType.VALUE, ctx.StringLiteral()?.getText());
         else if (ctx.numericLiteral()) return this.visitNumericLiteral(ctx.numericLiteral()!!);
     }
-    
 
 
     visitNumericLiteral(ctx: any): any {
-        if (ctx.DecimalLiteral()) return parseFloat(ctx.DecimalLiteral()?.getText()!!);
-        else if (ctx.HexIntegerLiteral()) return parseInt(ctx.HexIntegerLiteral()?.getText()!!, 16);
-        else if (ctx.OctalIntegerLiteral()) return parseInt(ctx.OctalIntegerLiteral()?.getText()!!, 8);
+        if (ctx.DecimalLiteral()) return new ExpressionResult(ExpressionResultType.VALUE, parseFloat(ctx.DecimalLiteral()?.getText()!!));
+        else if (ctx.HexIntegerLiteral()) return new ExpressionResult(ExpressionResultType.VALUE, parseInt(ctx.HexIntegerLiteral()?.getText()!!, 16));
+        else if (ctx.OctalIntegerLiteral()) return new ExpressionResult(ExpressionResultType.VALUE, parseInt(ctx.OctalIntegerLiteral()?.getText()!!, 8));
     }
 
     visitLiteralExpression(ctx: any): any {
         return this.visitLiteral(ctx.literal());
     }
 
-    visitSingleExpression(ctx: any): any {
+    visitSingleExpression(ctx: any): ExpressionResult {
         console.log("Exeuting single expression ");
         if (ctx instanceof Parser.ECMAScriptParser.MultiplicativeExpressionContext) return this.visitMultiplicativeExpression(ctx);
         else if (ctx instanceof Parser.ECMAScriptParser.AdditiveExpressionContext) return this.visitAdditiveExpression(ctx);
-        else if(ctx instanceof Parser.ECMAScriptParser.BitShiftExpressionContext) return this.visitBitShiftExpression(ctx);
-        else if(ctx instanceof Parser.ECMAScriptParser.RelationalExpressionContext) return this.visitRelationalExpression(ctx);
-        else if(ctx instanceof Parser.ECMAScriptParser.EqualityExpressionContext) return this.visitEqualityExpression(ctx);
-        else if(ctx instanceof Parser.ECMAScriptParser.BitAndExpressionContext) return this.visitBitAndExpression(ctx)
-        else if(ctx instanceof Parser.ECMAScriptParser.BitXOrExpressionContext) return this.visitBitXOrExpression(ctx);
-        else if(ctx instanceof Parser.ECMAScriptParser.BitOrExpressionContext) return this.visitBitOrExpression(ctx);
-        else if(ctx instanceof Parser.ECMAScriptParser.LogicalAndExpressionContext) return this.visitLogicalAndExpression(ctx);
-        else if(ctx instanceof Parser.ECMAScriptParser.LogicalOrExpressionContext) return this.visitLogicalOrExpression(ctx);
+        else if (ctx instanceof Parser.ECMAScriptParser.BitShiftExpressionContext) return this.visitBitShiftExpression(ctx);
+        else if (ctx instanceof Parser.ECMAScriptParser.RelationalExpressionContext) return this.visitRelationalExpression(ctx);
+        else if (ctx instanceof Parser.ECMAScriptParser.EqualityExpressionContext) return this.visitEqualityExpression(ctx);
+        else if (ctx instanceof Parser.ECMAScriptParser.BitAndExpressionContext) return this.visitBitAndExpression(ctx)
+        else if (ctx instanceof Parser.ECMAScriptParser.BitXOrExpressionContext) return this.visitBitXOrExpression(ctx);
+        else if (ctx instanceof Parser.ECMAScriptParser.BitOrExpressionContext) return this.visitBitOrExpression(ctx);
+        else if (ctx instanceof Parser.ECMAScriptParser.LogicalAndExpressionContext) return this.visitLogicalAndExpression(ctx);
+        else if (ctx instanceof Parser.ECMAScriptParser.LogicalOrExpressionContext) return this.visitLogicalOrExpression(ctx);
         else if (ctx instanceof Parser.ECMAScriptParser.LiteralExpressionContext) return this.visitLiteralExpression(ctx);
-        else if(ctx instanceof Parser.ECMAScriptParser.EqualityExpressionContext) return this.visitEqualityExpression(ctx);
+        else if (ctx instanceof Parser.ECMAScriptParser.EqualityExpressionContext) return this.visitEqualityExpression(ctx);
+        else if (ctx instanceof Parser.ECMAScriptParser.AssignmentExpressionContext) return this.visitAssignmentExpression(ctx);
+        else if (ctx instanceof Parser.ECMAScriptParser.IdentifierExpressionContext) return this.visitIdentifierExpression(ctx);
         else {
+            console.log(ctx);
             throw new Error("Unhandled expression type: " + typeof (ctx));
         }
     }
 
+    visitStatement(ctx: StatementContext): any {
+        if (ctx.expressionStatement()) {
+            this.visitExpressionStatement(ctx.expressionStatement()!!);
+        }
+    }
 
-    visitArgumentsExpression(ctx: any): any {
+    visitExpressionStatement(ctx: ExpressionStatementContext): any {
+        if (ctx.expressionSequence()) {
+            this.visitExpressionSequence(ctx.expressionSequence()!!);
+        }
+    }
+
+    visitExpressionSequence(ctx: ExpressionSequenceContext): ExpressionResult {
+        let expressions = ctx.singleExpression();
+        if (!expressions) return new ExpressionResult(ExpressionResultType.VALUE, undefined);
+
+        let returnVal = this.visitSingleExpression(expressions[0]);
+        for (let i = 1; i < expressions.length; i++) {
+            this.visitSingleExpression(expressions[i]);
+        }
+        return returnVal;
     }
 
     visitAssignmentExpression(ctx: any): any {
-    }
-
-    visitAssignmentOperator(ctx: any): any {
-    }
-
-    visitAssignmentOperatorExpression(ctx: any): any {
-    }
-
-    visitBlock(ctx: any): any {
-    }
-
-    visitBreakStatement(ctx: any): any {
-    }
-
-    visitContinueStatement(ctx: any): any {
-    }
-
-    visitDeclaration(ctx: any): any {
-    }
-
-    visitDeleteExpression(ctx: any): any {
-    }
-
-    visitDoStatement(ctx: any): any {
-    }
-
-    visitExpressionStatement(ctx: any): any {
-    }
-
-    visitForInStatement(ctx: any): any {
-    }
-
-    visitForOfStatement(ctx: any): any {
-    }
-
-    visitForStatement(ctx: any): any {
+        let expr = this.visitSingleExpression(ctx.singleExpression());
+        if (expr.type !== ExpressionResultType.VARIABLE) {
+            this.errorHandler.handleError(new ExecutionError(true, "Only variables are assignable"));
+            return;
+        }
+        console.log("EXPR ASSIGN:");
+        console.log(expr);
+        let valueExp = this.visitExpressionSequence(ctx.expressionSequence());
+        let value;
+        if (valueExp.type === ExpressionResultType.VARIABLE) {
+            let varVal = this.activeSymbolTable.getValue(valueExp.value);
+            if (varVal === undefined) {
+                this.errorHandler.handleError(new ExecutionError(true, `${valueExp.value} is not defined`))
+                return;
+            }
+            value = varVal;
+        } else {
+            value = valueExp.value;
+        }
+        this.activeSymbolTable.updateOrCreate(expr.value, value);
+        this.actions.push(new AssignmentAction(ctx.start.line, expr.value, value));
+        return new ExpressionResult(ExpressionResultType.VALUE, value);
     }
 
     visitIdentifierExpression(ctx: any): any {
+        return new ExpressionResult(ExpressionResultType.VARIABLE, ctx.Identifier().getText());
+    }
+
+    // visitAssignmentOperatorExpression(ctx: AssignmentOperatorExpressionContext) : any {
+    //     ctx.assignmentOperator().
+    // }
+
+    visitBitNotExpression(ctx: any): any {
+        let exprResult = this.visitSingleExpression(ctx.singleExpression());
+        return ~exprResult;
+    }
+
+    visitStatementList(ctx: StatementListContext): any {
+        let statements = ctx.statement();
+        if (statements) {
+            statements.forEach(stmt => this.visitStatement(stmt));
+        }
     }
 
 
-    visitIdentifierName(ctx: any): any {
-    }
+    // visitBlock(ctx: BlockContext) : any {}
+    // visitForStatement(ctx: ForStatementContext) : any {}
+    // visitForVarInStatement(ctx: ForVarInStatementContext) : any {}
+    // visitForVarStatement(ctx: ForVarStatementContext) : any {}
+    // visitIdentifierName(ctx: IdentifierNameContext) : any {}
+    // visitIfStatement(ctx: IfStatementContext) : any {}
+    // visitNotExpression(ctx: NotExpressionContext) : any {}
+    // visitPostDecreaseExpression(ctx: PostDecreaseExpressionContext) : any {}
+    // visitPostIncrementExpression(ctx: PostIncrementExpressionContext) : any {}
+    // visitPreDecreaseExpression(ctx: PreDecreaseExpressionContext) : any {}
+    // visitPreIncrementExpression(ctx: PreIncrementExpressionContext) : any {}
+    // visitVariableDeclaration(ctx: VariableDeclarationContext) : any {}
+    // visitVariableDeclarationList(ctx: VariableDeclarationListContext) : any {}
+    // visitVariableStatement(ctx: VariableStatementContext) : any {}
+    // visitWhileStatement(ctx: WhileStatementContext) : any {}
 
-    visitIfStatement(ctx: any): any {
-    }
 
-    visitInExpression(ctx: any): any {
-    }
-
-    visitMemberDotExpression(ctx: any): any {
-    }
-
-    visitPostDecreaseExpression(ctx: any): any {
-    }
-
-    visitPostIncrementExpression(ctx: any): any {
-    }
-
-    visitPreDecreaseExpression(ctx: any): any {
-    }
-
-    visitPreIncrementExpression(ctx: any): any {
-    }
-
-    visitStatement(ctx: any): any {
-    }
-
-    visitStatementList(ctx: any): any {
-    }
-
-    visitVarModifier(ctx: any): any {
-    }
-
-    visitVariableDeclaration(ctx: any): any {
-    }
-
-    visitVariableDeclarationList(ctx: any): any {
-    }
-
-    visitVariableStatement(ctx: any): any {
-    }
-
-    visitWhileStatement(ctx: any): any {
-    }
+    // visitArgumentList(ctx: ArgumentListContext) : any {}
+    // visitArguments(ctx: ArgumentsContext) : any {}
+    // visitArgumentsExpression(ctx: ArgumentsExpressionContext) : any {}
+    // visitArrayLiteral(ctx: ArrayLiteralContext) : any {}
+    // visitArrayLiteralExpression(ctx: ArrayLiteralExpressionContext) : any {}
+    // visitBreakStatement(ctx: BreakStatementContext) : any {}
+    // visitCaseBlock(ctx: CaseBlockContext) : any {}
+    // visitCaseClause(ctx: CaseClauseContext) : any {}
+    // visitCaseClauses(ctx: CaseClausesContext) : any {}
+    // visitCatchProduction(ctx: CatchProductionContext) : any {}
+    // visitContinueStatement(ctx: ContinueStatementContext) : any {}
+    // visitDebuggerStatement(ctx: DebuggerStatementContext) : any {}
+    // visitDefaultClause(ctx: DefaultClauseContext) : any {}
+    // visitDeleteExpression(ctx: DeleteExpressionContext) : any {}
+    // visitDoStatement(ctx: DoStatementContext) : any {}
+    // visitElementList(ctx: ElementListContext) : any {}
+    // visitElision(ctx: ElisionContext) : any {}
+    // visitEmptyStatement(ctx: EmptyStatementContext) : any {}
+    // visitEof(ctx: EofContext) : any {}
+    // visitEos(ctx: EosContext) : any {}
+    // visitFinallyProduction(ctx: FinallyProductionContext) : any {}
+    // visitForInStatement(ctx: ForInStatementContext) : any {}
+    // visitFormalParameterList(ctx: FormalParameterListContext) : any {}
+    // visitFunctionBody(ctx: FunctionBodyContext) : any {}
+    // visitFunctionDeclaration(ctx: FunctionDeclarationContext) : any {}
+    // visitFunctionExpression(ctx: FunctionExpressionContext) : any {}
+    // visitFutureReservedWord(ctx: FutureReservedWordContext) : any {}
+    // visitGetter(ctx: GetterContext) : any {}
+    // visitInExpression(ctx: InExpressionContext) : any {}
+    // visitInitialiser(ctx: InitialiserContext) : any {}
+    // visitInstanceofExpression(ctx: InstanceofExpressionContext) : any {}
+    // visitIterationStatement(ctx: IterationStatementContext) : any {}
+    // visitKeyword(ctx: KeywordContext) : any {}
+    // visitLabelledStatement(ctx: LabelledStatementContext) : any {}
+    // visitMemberDotExpression(ctx: MemberDotExpressionContext) : any {}
+    // visitMemberIndexExpression(ctx: MemberIndexExpressionContext) : any {}
+    // visitNewExpression(ctx: NewExpressionContext) : any {}
+    // visitObjectLiteral(ctx: ObjectLiteralContext) : any {}
+    // visitObjectLiteralExpression(ctx: ObjectLiteralExpressionContext) : any {}
+    // visitProgram(ctx: ProgramContext) : any {}
+    // visitPropertyAssignment(ctx: PropertyAssignmentContext) : any {}
+    // visitPropertyExpressionAssignment(ctx: PropertyExpressionAssignmentContext) : any {}
+    // visitPropertyGetter(ctx: PropertyGetterContext) : any {}
+    // visitPropertyName(ctx: PropertyNameContext) : any {}
+    // visitPropertyNameAndValueList(ctx: PropertyNameAndValueListContext) : any {}
+    // visitPropertySetParameterList(ctx: PropertySetParameterListContext) : any {}
+    // visitPropertySetter(ctx: PropertySetterContext) : any {}
+    // visitReservedWord(ctx: ReservedWordContext) : any {}
+    // visitReturnStatement(ctx: ReturnStatementContext) : any {}
+    // visitSetter(ctx: SetterContext) : any {}
+    // visitSourceElement(ctx: SourceElementContext) : any {}
+    // visitSourceElements(ctx: SourceElementsContext) : any {}
+    // visitSwitchStatement(ctx: SwitchStatementContext) : any {}
+    // visitTernaryExpression(ctx: TernaryExpressionContext) : any {}
+    // visitThisExpression(ctx: ThisExpressionContext) : any {}
+    // visitThrowStatement(ctx: ThrowStatementContext) : any {}
+    // visitTryStatement(ctx: TryStatementContext) : any {}
+    // visitTypeofExpression(ctx: TypeofExpressionContext) : any {}
+    // visitUnaryMinusExpression(ctx: UnaryMinusExpressionContext) : any {}
+    // visitUnaryPlusExpression(ctx: UnaryPlusExpressionContext) : any {}
+    // visitVoidExpression(ctx: VoidExpressionContext) : any {}
+    // visitWithStatement(ctx: WithStatementContext) : any {}
 
 
     visit(tree: any): any {
@@ -331,9 +448,14 @@ export default class JavaScriptExecutor extends ECMAScriptVisitor.ECMAScriptVisi
         console.log(node);
         return undefined;
     }
+
 }
 
 
-let source = "5 + 4 * 5 == 25";
-let executor = new JavaScriptExecutor(source);
+let source = "x = 10; y = 4 + x; z = y * 3";
+let executor = new JavaScriptExecutor(source, new class implements ErrorHandler {
+    handleError(error: ExecutionError): void {
+        console.error(error.message);
+    }
+});
 let result = executor.executeAll();

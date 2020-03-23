@@ -40,5 +40,13 @@ export default class SymbolTable {
         return undefined;
     }
 
+    updateOrCreate(name:string, value:any=undefined){
+        if(this.getValue(name) === undefined){
+            this.defineVariable(name, value);
+            return;
+        }
+        this.entries[name].value = value;
+    }
+
 
 }
