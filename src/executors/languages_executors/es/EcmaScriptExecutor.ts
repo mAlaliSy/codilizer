@@ -7,14 +7,24 @@ import Executor from "../../Executor";
 import SymbolTable from "./SymbolTable";
 import {ECMAScriptVisitor} from "../testts/ECMAScriptVisitor";
 import {
-    AssignmentExpressionContext, AssignmentOperatorExpressionContext,
-    BitNotExpressionContext, ExpressionSequenceContext,
-    ExpressionStatementContext, IdentifierExpressionContext, IfStatementContext, NotExpressionContext,
-    StatementContext, StatementListContext
+    AssignmentExpressionContext,
+    AssignmentOperatorExpressionContext,
+    BitNotExpressionContext,
+    ExpressionSequenceContext,
+    ExpressionStatementContext,
+    IdentifierExpressionContext,
+    IfStatementContext,
+    NotExpressionContext,
+    StatementContext,
+    StatementListContext,
+    VariableDeclarationContext,
+    VariableDeclarationListContext,
+    VariableStatementContext
 } from "../testts/ECMAScriptParser";
 import ErrorHandler from "../../errorhandler/ErrorHandler";
 import ExecutionError from "../../errorhandler/Error";
 import AssignmentAction from "../../actions/AssignmentAction";
+import VarDecAction from "../../actions/VarDecAction";
 
 const antlr4 = require('antlr4/index');
 const ECMAScriptLexer = require("./parser/ECMAScriptLexer");
@@ -73,6 +83,25 @@ export default class JavaScriptExecutor extends ECMAScriptVisitor.ECMAScriptVisi
         console.log("Actions: ", this.actions);
         return this.actions;
         // return this.actions;
+    }
+
+    getVarValueOrError(name: string) {
+        let varVal = this.activeSymbolTable.getValue(name);
+        if (varVal === undefined) {
+            this.errorHandler.handleError(new ExecutionError(true, `${name} is not defined`));
+            return;
+        }
+        return varVal;
+    }
+
+    getValueOfExpressionResult(expResult: ExpressionResult) {
+        if (expResult.type === ExpressionResultType.VALUE) return expResult.value;
+        return this.getVarValueOrError(expResult.value);
+    }
+
+    getExpressionValue(ctx: any) {
+        let expResult = this.visitSingleExpression(ctx);
+        return this.getValueOfExpressionResult(expResult);
     }
 
     visitBinary(ctx: any, op: string): ExpressionResult {
@@ -185,19 +214,19 @@ export default class JavaScriptExecutor extends ECMAScriptVisitor.ECMAScriptVisi
         return this.visitBinary(ctx, '^');
     }
 
+
     visitEqualityExpression(ctx: any): any {
         return this.visitBinary(ctx, ctx.Equals() ? '==' : '!=');
     }
-
 
     visitLogicalAndExpression(ctx: any): any {
         return this.visitBinary(ctx, '&&');
     }
 
+
     visitLogicalOrExpression(ctx: any): any {
         return this.visitBinary(ctx, '||');
     }
-
 
     visitMultiplicativeExpression(ctx: any): any {
         let op;
@@ -226,6 +255,7 @@ export default class JavaScriptExecutor extends ECMAScriptVisitor.ECMAScriptVisi
         return this.visitBinary(ctx, op);
     }
 
+
     visitRelationalExpression(ctx: any) {
         let op;
         if (ctx.LessThan())
@@ -246,7 +276,6 @@ export default class JavaScriptExecutor extends ECMAScriptVisitor.ECMAScriptVisi
         else if (ctx.numericLiteral()) return this.visitNumericLiteral(ctx.numericLiteral()!!);
     }
 
-
     visitNumericLiteral(ctx: any): any {
         if (ctx.DecimalLiteral()) return new ExpressionResult(ExpressionResultType.VALUE, parseFloat(ctx.DecimalLiteral()?.getText()!!));
         else if (ctx.HexIntegerLiteral()) return new ExpressionResult(ExpressionResultType.VALUE, parseInt(ctx.HexIntegerLiteral()?.getText()!!, 16));
@@ -257,12 +286,12 @@ export default class JavaScriptExecutor extends ECMAScriptVisitor.ECMAScriptVisi
         return this.visitLiteral(ctx.literal());
     }
 
-    visitNotExpression(ctx: NotExpressionContext) : any {
+    visitNotExpression(ctx: NotExpressionContext): any {
         let expResult = this.visitSingleExpression(ctx.singleExpression());
         let value;
-        if(expResult.type === ExpressionResultType.VARIABLE){
-            value = this.getVariableOrError(expResult.value);
-        }else{
+        if (expResult.type === ExpressionResultType.VARIABLE) {
+            value = this.getVarValueOrError(expResult.value);
+        } else {
             value = expResult.value;
         }
         let result = !value;
@@ -294,9 +323,9 @@ export default class JavaScriptExecutor extends ECMAScriptVisitor.ECMAScriptVisi
     visitStatement(ctx: StatementContext): any {
         if (ctx.expressionStatement()) {
             this.visitExpressionStatement(ctx.expressionStatement()!!);
-        }else if(ctx.block()){
+        } else if (ctx.block()) {
             this.visitBlock(ctx.block());
-        }else if(ctx.ifStatement()){
+        } else if (ctx.ifStatement()) {
             this.visitIfStatement(ctx.ifStatement());
         }
     }
@@ -318,15 +347,6 @@ export default class JavaScriptExecutor extends ECMAScriptVisitor.ECMAScriptVisi
         return returnVal;
     }
 
-    getVariableOrError(name:string){
-        let varVal = this.activeSymbolTable.getValue(name);
-        if (varVal === undefined) {
-            this.errorHandler.handleError(new ExecutionError(true, `${name} is not defined`));
-            return;
-        }
-        return varVal;
-    }
-
     visitAssignmentExpression(ctx: any): any {
         let expr = this.visitSingleExpression(ctx.singleExpression());
         if (expr.type !== ExpressionResultType.VARIABLE) {
@@ -336,7 +356,7 @@ export default class JavaScriptExecutor extends ECMAScriptVisitor.ECMAScriptVisi
         let valueExp = this.visitExpressionSequence(ctx.expressionSequence());
         let value;
         if (valueExp.type === ExpressionResultType.VARIABLE) {
-            value = this.getVariableOrError(valueExp.value);
+            value = this.getVarValueOrError(valueExp.value);
         } else {
             value = valueExp.value;
         }
@@ -363,31 +383,45 @@ export default class JavaScriptExecutor extends ECMAScriptVisitor.ECMAScriptVisi
     }
 
 
-    visitBlock(ctx: any) : any {
+    visitBlock(ctx: any): any {
         this.activeSymbolTable = new SymbolTable(this.activeSymbolTable);
         let statementList = ctx.statementList();
-        if(statementList)
+        if (statementList)
             this.visitStatementList(statementList);
         this.activeSymbolTable = this.activeSymbolTable.parent!!;
     }
 
-    visitIfStatement(ctx:any) : any {
+    visitIfStatement(ctx: any): any {
         let expressions = ctx.expressionSequence().singleExpression();
         let evaluatTrue = false;
-        expressions.forEach((exp:any)=> evaluatTrue = evaluatTrue || this.visitSingleExpression(exp).value);
-        if(evaluatTrue){
-            if(ctx.statement().length > 0)
+        expressions.forEach((exp: any) => evaluatTrue = evaluatTrue || this.visitSingleExpression(exp).value);
+        if (evaluatTrue) {
+            if (ctx.statement().length > 0)
                 this.visitStatement(ctx.statement()[0])
-        }else {
-            if(ctx.statement().length > 1)
+        } else {
+            if (ctx.statement().length > 1)
                 this.visitStatement(ctx.statement()[1]);
         }
     }
 
 
-    // visitVariableDeclaration(ctx: VariableDeclarationContext) : any {}
-    // visitVariableDeclarationList(ctx: VariableDeclarationListContext) : any {}
-    // visitVariableStatement(ctx: VariableStatementContext) : any {}
+    visitVariableDeclaration(ctx: any): any {
+        let varName = ctx.Identifier().getText();
+        let value = undefined;
+        if (ctx.initialiser()) {
+            value = this.getExpressionValue(ctx.initialiser().singleExpression());
+        }
+        this.activeSymbolTable.defineVariable(varName, value);
+        this.actions.push(new VarDecAction(varName, value));
+    }
+
+    visitVariableDeclarationList(ctx: VariableDeclarationListContext): any {
+        ctx.variableDeclaration().forEach(this.visitVariableDeclaration)
+    }
+
+    visitVariableStatement(ctx: VariableStatementContext) : any {
+        this.visitVariableDeclarationList(ctx.variableDeclarationList());
+    }
     // visitWhileStatement(ctx: WhileStatementContext) : any {}
 
 
