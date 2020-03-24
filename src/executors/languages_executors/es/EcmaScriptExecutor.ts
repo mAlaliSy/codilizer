@@ -5,22 +5,7 @@ import Parser from "./parser/ECMAScriptParser";
 
 import Executor from "../../Executor";
 import SymbolTable from "./SymbolTable";
-import {ECMAScriptVisitor} from "../testts/ECMAScriptVisitor";
-import {
-    AssignmentExpressionContext,
-    AssignmentOperatorExpressionContext,
-    BitNotExpressionContext,
-    ExpressionSequenceContext,
-    ExpressionStatementContext,
-    IdentifierExpressionContext,
-    IfStatementContext,
-    NotExpressionContext,
-    StatementContext,
-    StatementListContext,
-    VariableDeclarationContext,
-    VariableDeclarationListContext,
-    VariableStatementContext, WhileStatementContext
-} from "../testts/ECMAScriptParser";
+
 import ErrorHandler from "../../errorhandler/ErrorHandler";
 import ExecutionError from "../../errorhandler/Error";
 import AssignmentAction from "../../actions/AssignmentAction";
@@ -45,7 +30,7 @@ class ExpressionResult {
     }
 }
 
-export default class JavaScriptExecutor extends ECMAScriptVisitor.ECMAScriptVisitor implements ECMAScriptVisitor<any> {
+export default class JavaScriptExecutor extends ECMAScriptVisitor.ECMAScriptVisitor {
     lexer: any;
     parser: any;
     actions: any = [];
@@ -286,7 +271,7 @@ export default class JavaScriptExecutor extends ECMAScriptVisitor.ECMAScriptVisi
         return this.visitLiteral(ctx.literal());
     }
 
-    visitNotExpression(ctx: NotExpressionContext): any {
+    visitNotExpression(ctx:any): any {
         let expResult = this.visitSingleExpression(ctx.singleExpression());
         let value;
         if (expResult.type === ExpressionResultType.VARIABLE) {
@@ -320,30 +305,35 @@ export default class JavaScriptExecutor extends ECMAScriptVisitor.ECMAScriptVisi
         }
     }
 
-    evaluateLogicalExpressionSequence(ctx:any):boolean{
+    evaluateLogicalExpressionSequence(ctx: any): boolean {
         let expressions = ctx.singleExpression();
         let evaluatTrue = false;
         expressions.forEach((exp: any) => evaluatTrue = evaluatTrue || this.visitSingleExpression(exp).value);
         return evaluatTrue;
     }
 
-    visitStatement(ctx: StatementContext): any {
+    visitStatement(ctx: any): any {
         if (ctx.expressionStatement()) {
             this.visitExpressionStatement(ctx.expressionStatement()!!);
         } else if (ctx.block()) {
             this.visitBlock(ctx.block());
         } else if (ctx.ifStatement()) {
             this.visitIfStatement(ctx.ifStatement());
+        } else if (ctx.iterationStatement()) {
+            console.log("ITERATION");
+            this.visitIterationStatement(ctx.iterationStatement()!!);
+        }else{
+            console.error("Unhandled type of statement");
         }
     }
 
-    visitExpressionStatement(ctx: ExpressionStatementContext): any {
+    visitExpressionStatement(ctx: any): any {
         if (ctx.expressionSequence()) {
             this.visitExpressionSequence(ctx.expressionSequence()!!);
         }
     }
 
-    visitExpressionSequence(ctx: ExpressionSequenceContext): ExpressionResult {
+    visitExpressionSequence(ctx: any): ExpressionResult {
         let expressions = ctx.singleExpression();
         if (!expressions) return new ExpressionResult(ExpressionResultType.VALUE, undefined);
 
@@ -382,10 +372,10 @@ export default class JavaScriptExecutor extends ECMAScriptVisitor.ECMAScriptVisi
         return ~exprResult;
     }
 
-    visitStatementList(ctx: StatementListContext): any {
+    visitStatementList(ctx: any): any {
         let statements = ctx.statement();
         if (statements) {
-            statements.forEach(stmt => this.visitStatement(stmt));
+            statements.forEach(this.visitStatement.bind(this));
         }
     }
 
@@ -413,33 +403,76 @@ export default class JavaScriptExecutor extends ECMAScriptVisitor.ECMAScriptVisi
         let varName = ctx.Identifier().getText();
         let value = undefined;
         if (ctx.initialiser()) {
+            console.log("THIS");
+            console.log(this);
             value = this.getExpressionValue(ctx.initialiser().singleExpression());
         }
         this.activeSymbolTable.defineVariable(varName, value);
         this.actions.push(new VarDecAction(varName, value));
     }
 
-    visitVariableDeclarationList(ctx: VariableDeclarationListContext): any {
-        ctx.variableDeclaration().forEach(this.visitVariableDeclaration)
+    visitVariableDeclarationList(ctx: any): any {
+        ctx.variableDeclaration().forEach(this.visitVariableDeclaration.bind(this))
     }
 
-    visitVariableStatement(ctx: VariableStatementContext) : any {
+    visitVariableStatement(ctx: any): any {
         this.visitVariableDeclarationList(ctx.variableDeclarationList());
     }
 
-    visitWhileStatement(ctx: WhileStatementContext) : any {
+    visitWhileStatement(ctx: any): any {
         this.actions.push(new Action(ctx.start.line, "Executing while statement"));
 
-        while(this.evaluateLogicalExpressionSequence(ctx.expressionSequence())){
+        while (this.evaluateLogicalExpressionSequence(ctx.expressionSequence())) {
             this.visitStatement(ctx.statement());
             this.actions.push(new Action(ctx.expressionSequence().start.line, "Evaluating while condition"));
         }
     }
 
+    visitForVarStatement(ctx:any): any {
+        this.actions.push(new Action(ctx.start.line, "Executing for statement"));
+        this.visitVariableDeclarationList(ctx.variableDeclarationList());
+        while (true) {
 
-    // visitForStatement(ctx: ForStatementContext) : any {}
+            this.actions.push(new Action(ctx.expressionSequence()[0].start.line, "Evaluating for condition"));
+            if (!this.evaluateLogicalExpressionSequence(ctx.expressionSequence()[0]))
+                break;
+
+            this.actions.push(new Action(ctx.start.line, "Executing increment/decrement of for loop"));
+            this.visitExpressionSequence(ctx.expressionSequence()[1])
+        }
+    }
+
+
+    visitForStatement(ctx: any): any {
+        this.actions.push(new Action(ctx.start.line, "Executing for statement"));
+        this.visitExpressionSequence(ctx.expressionSequence()[0]);
+        while (true) {
+
+            this.actions.push(new Action(ctx.expressionSequence()[0].start.line, "Evaluating for condition"));
+            if (!this.evaluateLogicalExpressionSequence(ctx.expressionSequence()[1]))
+                break;
+
+            this.actions.push(new Action(ctx.start.line, "Executing increment/decrement of for loop"));
+            this.visitExpressionSequence(ctx.expressionSequence()[2])
+        }
+    }
+
+
+    private visitIterationStatement(iterationStatement: any) {
+        if (iterationStatement instanceof Parser.ECMAScriptParser.WhileStatementContext) {
+            this.visitWhileStatement(iterationStatement);
+        } else if (iterationStatement instanceof Parser.ECMAScriptParser.ForVarStatementContext) {
+            this.visitForVarStatement(iterationStatement);
+        } else if (iterationStatement instanceof Parser.ECMAScriptParser.ForStatementContext) {
+            this.visitForStatement(iterationStatement)
+        } else if (iterationStatement instanceof Parser.ECMAScriptParser.ForVarInStatementContext) {
+
+        } else if (iterationStatement instanceof Parser.ECMAScriptParser.ForInStatementContext) {
+
+        }
+    }
+
     // visitForVarInStatement(ctx: ForVarInStatementContext) : any {}
-    // visitForVarStatement(ctx: ForVarStatementContext) : any {}
     // visitIdentifierName(ctx: IdentifierNameContext) : any {}
 
     // visitAssignmentOperatorExpression(ctx: AssignmentOperatorExpressionContext) : any {
@@ -481,7 +514,6 @@ export default class JavaScriptExecutor extends ECMAScriptVisitor.ECMAScriptVisi
     // visitInExpression(ctx: InExpressionContext) : any {}
     // visitInitialiser(ctx: InitialiserContext) : any {}
     // visitInstanceofExpression(ctx: InstanceofExpressionContext) : any {}
-    // visitIterationStatement(ctx: IterationStatementContext) : any {}
     // visitKeyword(ctx: KeywordContext) : any {}
     // visitLabelledStatement(ctx: LabelledStatementContext) : any {}
     // visitMemberDotExpression(ctx: MemberDotExpressionContext) : any {}
@@ -537,7 +569,7 @@ export default class JavaScriptExecutor extends ECMAScriptVisitor.ECMAScriptVisi
 }
 
 
-let source = "if(10 + 4 < 4)\n{ x = 10; y = 4 + x; z = y * 3; }\nelse{j = 'EVALUATED TO FALSE';}";
+let source = "for(var x = 0; x < 10; x = x + 1){ var y = 10; }";
 let executor = new JavaScriptExecutor(source, new class implements ErrorHandler {
     handleError(error: ExecutionError): void {
         console.error(error.message);
