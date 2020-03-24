@@ -9,7 +9,7 @@ import {ECMAScriptVisitor} from "../testts/ECMAScriptVisitor";
 import {
     AssignmentExpressionContext, AssignmentOperatorExpressionContext,
     BitNotExpressionContext, ExpressionSequenceContext,
-    ExpressionStatementContext, IdentifierExpressionContext, IfStatementContext,
+    ExpressionStatementContext, IdentifierExpressionContext, IfStatementContext, NotExpressionContext,
     StatementContext, StatementListContext
 } from "../testts/ECMAScriptParser";
 import ErrorHandler from "../../errorhandler/ErrorHandler";
@@ -257,6 +257,19 @@ export default class JavaScriptExecutor extends ECMAScriptVisitor.ECMAScriptVisi
         return this.visitLiteral(ctx.literal());
     }
 
+    visitNotExpression(ctx: NotExpressionContext) : any {
+        let expResult = this.visitSingleExpression(ctx.singleExpression());
+        let value;
+        if(expResult.type === ExpressionResultType.VARIABLE){
+            value = this.getVariableOrError(expResult.value);
+        }else{
+            value = expResult.value;
+        }
+        let result = !value;
+        this.actions.push(new EvaluateExpressionAction(ctx.start.line, "!" + expResult.value, result));
+        return new ExpressionResult(ExpressionResultType.VALUE, result);
+    }
+
     visitSingleExpression(ctx: any): ExpressionResult {
         if (ctx instanceof Parser.ECMAScriptParser.MultiplicativeExpressionContext) return this.visitMultiplicativeExpression(ctx);
         else if (ctx instanceof Parser.ECMAScriptParser.AdditiveExpressionContext) return this.visitAdditiveExpression(ctx);
@@ -305,6 +318,15 @@ export default class JavaScriptExecutor extends ECMAScriptVisitor.ECMAScriptVisi
         return returnVal;
     }
 
+    getVariableOrError(name:string){
+        let varVal = this.activeSymbolTable.getValue(name);
+        if (varVal === undefined) {
+            this.errorHandler.handleError(new ExecutionError(true, `${name} is not defined`));
+            return;
+        }
+        return varVal;
+    }
+
     visitAssignmentExpression(ctx: any): any {
         let expr = this.visitSingleExpression(ctx.singleExpression());
         if (expr.type !== ExpressionResultType.VARIABLE) {
@@ -314,12 +336,7 @@ export default class JavaScriptExecutor extends ECMAScriptVisitor.ECMAScriptVisi
         let valueExp = this.visitExpressionSequence(ctx.expressionSequence());
         let value;
         if (valueExp.type === ExpressionResultType.VARIABLE) {
-            let varVal = this.activeSymbolTable.getValue(valueExp.value);
-            if (varVal === undefined) {
-                this.errorHandler.handleError(new ExecutionError(true, `${valueExp.value} is not defined`))
-                return;
-            }
-            value = varVal;
+            value = this.getVariableOrError(valueExp.value);
         } else {
             value = valueExp.value;
         }
@@ -332,9 +349,6 @@ export default class JavaScriptExecutor extends ECMAScriptVisitor.ECMAScriptVisi
         return new ExpressionResult(ExpressionResultType.VARIABLE, ctx.Identifier().getText());
     }
 
-    // visitAssignmentOperatorExpression(ctx: AssignmentOperatorExpressionContext) : any {
-    //     ctx.assignmentOperator().
-    // }
 
     visitBitNotExpression(ctx: any): any {
         let exprResult = this.visitSingleExpression(ctx.singleExpression());
@@ -370,20 +384,25 @@ export default class JavaScriptExecutor extends ECMAScriptVisitor.ECMAScriptVisi
         }
     }
 
-    // visitForStatement(ctx: ForStatementContext) : any {}
-    // visitForVarInStatement(ctx: ForVarInStatementContext) : any {}
-    // visitForVarStatement(ctx: ForVarStatementContext) : any {}
-    // visitIdentifierName(ctx: IdentifierNameContext) : any {}
-    // visitNotExpression(ctx: NotExpressionContext) : any {}
-    // visitPostDecreaseExpression(ctx: PostDecreaseExpressionContext) : any {}
-    // visitPostIncrementExpression(ctx: PostIncrementExpressionContext) : any {}
-    // visitPreDecreaseExpression(ctx: PreDecreaseExpressionContext) : any {}
-    // visitPreIncrementExpression(ctx: PreIncrementExpressionContext) : any {}
+
     // visitVariableDeclaration(ctx: VariableDeclarationContext) : any {}
     // visitVariableDeclarationList(ctx: VariableDeclarationListContext) : any {}
     // visitVariableStatement(ctx: VariableStatementContext) : any {}
     // visitWhileStatement(ctx: WhileStatementContext) : any {}
 
+
+    // visitForStatement(ctx: ForStatementContext) : any {}
+    // visitForVarInStatement(ctx: ForVarInStatementContext) : any {}
+    // visitForVarStatement(ctx: ForVarStatementContext) : any {}
+    // visitIdentifierName(ctx: IdentifierNameContext) : any {}
+
+    // visitAssignmentOperatorExpression(ctx: AssignmentOperatorExpressionContext) : any {
+    //     ctx.assignmentOperator().
+    // }
+    // visitPostDecreaseExpression(ctx: PostDecreaseExpressionContext) : any {}
+    // visitPostIncrementExpression(ctx: PostIncrementExpressionContext) : any {}
+    // visitPreDecreaseExpression(ctx: PreDecreaseExpressionContext) : any {}
+    // visitPreIncrementExpression(ctx: PreIncrementExpressionContext) : any {}
 
     // visitArgumentList(ctx: ArgumentListContext) : any {}
     // visitArguments(ctx: ArgumentsContext) : any {}
