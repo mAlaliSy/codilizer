@@ -19,7 +19,7 @@ import {
     StatementListContext,
     VariableDeclarationContext,
     VariableDeclarationListContext,
-    VariableStatementContext
+    VariableStatementContext, WhileStatementContext
 } from "../testts/ECMAScriptParser";
 import ErrorHandler from "../../errorhandler/ErrorHandler";
 import ExecutionError from "../../errorhandler/Error";
@@ -320,6 +320,13 @@ export default class JavaScriptExecutor extends ECMAScriptVisitor.ECMAScriptVisi
         }
     }
 
+    evaluateLogicalExpressionSequence(ctx:any):boolean{
+        let expressions = ctx.singleExpression();
+        let evaluatTrue = false;
+        expressions.forEach((exp: any) => evaluatTrue = evaluatTrue || this.visitSingleExpression(exp).value);
+        return evaluatTrue;
+    }
+
     visitStatement(ctx: StatementContext): any {
         if (ctx.expressionStatement()) {
             this.visitExpressionStatement(ctx.expressionStatement()!!);
@@ -392,10 +399,7 @@ export default class JavaScriptExecutor extends ECMAScriptVisitor.ECMAScriptVisi
     }
 
     visitIfStatement(ctx: any): any {
-        let expressions = ctx.expressionSequence().singleExpression();
-        let evaluatTrue = false;
-        expressions.forEach((exp: any) => evaluatTrue = evaluatTrue || this.visitSingleExpression(exp).value);
-        if (evaluatTrue) {
+        if (this.evaluateLogicalExpressionSequence(ctx)) {
             if (ctx.statement().length > 0)
                 this.visitStatement(ctx.statement()[0])
         } else {
@@ -422,7 +426,15 @@ export default class JavaScriptExecutor extends ECMAScriptVisitor.ECMAScriptVisi
     visitVariableStatement(ctx: VariableStatementContext) : any {
         this.visitVariableDeclarationList(ctx.variableDeclarationList());
     }
-    // visitWhileStatement(ctx: WhileStatementContext) : any {}
+
+    visitWhileStatement(ctx: WhileStatementContext) : any {
+        this.actions.push(new Action(ctx.start.line, "Executing while statement"));
+
+        while(this.evaluateLogicalExpressionSequence(ctx.expressionSequence())){
+            this.visitStatement(ctx.statement());
+            this.actions.push(new Action(ctx.expressionSequence().start.line, "Evaluating while condition"));
+        }
+    }
 
 
     // visitForStatement(ctx: ForStatementContext) : any {}
