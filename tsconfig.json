@@ -12,7 +12,7 @@
     "strict": true,
     "forceConsistentCasingInFileNames": true,
     "moduleResolution": "node",
-    "module": "commonjs",
+    "module": "esnext",
     "target": "es6",
     "resolveJsonModule": true,
     "isolatedModules": true,
