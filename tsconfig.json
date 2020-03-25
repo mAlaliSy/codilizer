@@ -12,9 +12,8 @@
     "strict": true,
     "forceConsistentCasingInFileNames": true,
     "moduleResolution": "node",
-
-    "module": "commonjs", // add this
-    "target": "es6", // and this
+    "module": "commonjs",
+    "target": "es6",
     "resolveJsonModule": true,
     "isolatedModules": true,
     "noEmit": true,

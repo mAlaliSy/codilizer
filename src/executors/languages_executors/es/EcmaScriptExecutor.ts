@@ -1,5 +1,5 @@
-import Action from "../../actions/Action";
 import EvaluateExpressionAction from "../../actions/EvaluateExpressionAction";
+import Action from "../../actions/Action";
 
 import Parser from "./parser/ECMAScriptParser";
 
@@ -10,11 +10,6 @@ import ErrorHandler from "../../errorhandler/ErrorHandler";
 import ExecutionError from "../../errorhandler/Error";
 import AssignmentAction from "../../actions/AssignmentAction";
 import VarDecAction from "../../actions/VarDecAction";
-import {
-    ArgumentsExpressionContext,
-    IdentifierExpressionContext,
-    MemberDotExpressionContext
-} from "../testts/ECMAScriptParser";
 import PrintAction from "../../actions/PrintAction";
 
 const antlr4 = require('antlr4/index');
@@ -36,7 +31,7 @@ class ExpressionResult {
     }
 }
 
-export default class JavaScriptExecutor extends ECMAScriptVisitor.ECMAScriptVisitor {
+export default class JavaScriptExecutor extends ECMAScriptVisitor.ECMAScriptVisitor implements Executor{
     lexer: any;
     parser: any;
     actions: any = [];
@@ -58,22 +53,14 @@ export default class JavaScriptExecutor extends ECMAScriptVisitor.ECMAScriptVisi
         this.lexer = new ECMAScriptLexer.ECMAScriptLexer(inputStream);
 
         let tokenStream = new antlr4.CommonTokenStream(this.lexer);
-        console.log(tokenStream.tokens);
         this.parser = new Parser.ECMAScriptParser(tokenStream);
         this.parser.buildParseTrees = true;
     }
 
     executeAll(): Array<Action> {
-        console.log("Executing all");
         this.actions = new Array<Action>();
-        console.log("After creating");
-        // this.visitStatementList(this.parser.statementList());
-        // let tree = this.parser.parse();
-        let result = this.visitStatement(this.parser.statement());
-        console.log("Result: " + result);
-        console.log("Actions: ", this.actions);
+        this.visitStatement(this.parser.statement());
         return this.actions;
-        // return this.actions;
     }
 
     getVarValueOrError(name: string) {
@@ -96,15 +83,11 @@ export default class JavaScriptExecutor extends ECMAScriptVisitor.ECMAScriptVisi
     }
 
     visitBinary(ctx: any, op: string): ExpressionResult {
-        console.log("Evluate binary: op: " + op);
         const leftExp = this.visitSingleExpression(ctx.singleExpression()[0]);
         const rightExp = this.visitSingleExpression(ctx.singleExpression()[1]);
-        console.log("Left expr: ", leftExp);
-        console.log("Right expr: ", rightExp);
         let left, right;
         if (leftExp.type === ExpressionResultType.VARIABLE) {
             left = this.activeSymbolTable.getValue(leftExp.value);
-            console.log("LEFT FROM SYMBOL: ", left);
             if (left === undefined) this.errorHandler.handleError(new ExecutionError(true, `${leftExp.value} is not defined`))
             left = left.value;
         } else {
@@ -118,9 +101,6 @@ export default class JavaScriptExecutor extends ECMAScriptVisitor.ECMAScriptVisi
         } else {
             right = rightExp.value;
         }
-
-        console.log("Left: ", left);
-        console.log("Right: ", right);
 
         let result;
         switch (op) {
@@ -328,15 +308,15 @@ export default class JavaScriptExecutor extends ECMAScriptVisitor.ECMAScriptVisi
         } else if (ctx.ifStatement()) {
             this.visitIfStatement(ctx.ifStatement());
         } else if (ctx.iterationStatement()) {
-            console.log("ITERATION");
-            this.visitIterationStatement(ctx.iterationStatement()!!);
-        }else{
-            console.error("Unhandled type of statement");
+             this.visitIterationStatement(ctx.iterationStatement()!!);
+        } else if (ctx.variableStatement()) {
+            this.visitVariableStatement(ctx.variableStatement());
+        } else{
+            this.errorHandler.handleError(new ExecutionError(false, "Unsupported statement: " + ctx.start.getText()));
         }
     }
 
     visitExpressionStatement(ctx: any): any {
-        console.log("+============== expression statement")
         if (ctx.expressionSequence()) {
             this.visitExpressionSequence(ctx.expressionSequence()!!);
         }
@@ -412,8 +392,6 @@ export default class JavaScriptExecutor extends ECMAScriptVisitor.ECMAScriptVisi
         let varName = ctx.Identifier().getText();
         let value = undefined;
         if (ctx.initialiser()) {
-            console.log("THIS");
-            console.log(this);
             value = this.getExpressionValue(ctx.initialiser().singleExpression());
         }
         this.activeSymbolTable.defineVariable(varName, value);
@@ -484,7 +462,6 @@ export default class JavaScriptExecutor extends ECMAScriptVisitor.ECMAScriptVisi
     }
 
     visitMemberDotExpression(ctx: any) : any {
-        console.log("VISITING MEMBER DON");
         if(ctx.singleExpression() !instanceof Parser.ECMAScriptParser.IdentifierExpressionContext){
             this.errorHandler.handleError(new ExecutionError(true, "Only logging functions/member calls are supported"));
             return;
@@ -603,7 +580,7 @@ export default class JavaScriptExecutor extends ECMAScriptVisitor.ECMAScriptVisi
 }
 
 
-let source = "for(var x = 0; x < 10; x = x + 1){ var y = 'test'; console.log(x); }";
+let source = "var x = 3 + 5 * 4;";
 let executor = new JavaScriptExecutor(source, new class implements ErrorHandler {
     handleError(error: ExecutionError): void {
         console.error(error.message);
