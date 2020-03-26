@@ -25,7 +25,7 @@ function App() {
     let [executionState, setExecutionState] = useState({line: -1, variables: []});
     let [codeExecuted, setCodeExecuted] = useState(false);
     let [fatalError, setFatalError] = useState(false);
-    let [nexActionIndex, setLastActionIndex] = useState(0);
+    let [nextActionIndex, setNextActionIndex] = useState(0);
     let [errors, setErrors] = useState([]);
     let [actions, setActions] = useState(new Array<Action>());
 
@@ -55,11 +55,32 @@ function App() {
             if (error.fatal) setFatalError(true);
         }
     };
-
+    let executeNextAction = ()=>{
+        let action = actions[nextActionIndex];
+        if (action instanceof AssignmentAction) {
+            let assignmentAction = action as AssignmentAction;
+            let variables : any = {...executionState.variables};
+            variables[assignmentAction.varName] = assignmentAction.value;
+            setExecutionState({...executionState, variables});
+        } else if (action instanceof VarDecAction) {
+            let varDecAction = action as VarDecAction;
+            let variables : any = {...executionState.variables};
+            variables[varDecAction.varName] = "undefined";
+            if (varDecAction.initialValue !== undefined)
+                variables[varDecAction.varName] = varDecAction.initialValue;
+            setExecutionState({...executionState, variables});
+        } else if (action instanceof PrintAction) {
+            // TODO : IMPLEMENT THE CONSOLE
+        } else if (action instanceof EvaluateExpressionAction) {
+            // DO NOTHING
+        } else if (action instanceof JumpAction) {
+            setExecutionState({...executionState, line: action.lineNumber});
+        }
+    };
     let onExecuteClicked = () => {
         if (editor.getModel()?.getValue() == null) return;
         setErrors([]);
-        setLastActionIndex(0);
+        setNextActionIndex(0);
         setCodeExecuted(true);
         setFatalError(false);
         let executor = new JavaScriptExecutor(editor.getModel()?.getValue()!!, errorHandler);
@@ -67,9 +88,14 @@ function App() {
         setExecutionState({...executionState, line: 1});
     };
 
+    let onNextClicked = ()=>{
+        executeNextAction();
+        setNextActionIndex(nextActionIndex+1);
+    };
+
     let getNextCommandText = () => {
         if (!codeExecuted) return "-";
-        let action = actions[nexActionIndex];
+        let action = actions[nextActionIndex];
         if (action instanceof AssignmentAction) {
             let assingmentAction = action as AssignmentAction;
             return "Assign " + assingmentAction.value + " to variable " + assingmentAction.varName;
@@ -173,7 +199,7 @@ function App() {
                             codeExecuted ?
                                 <ButtonGroup className={"m-3"}>
                                     <Button>Reset All</Button>
-                                    <Button>Next</Button>
+                                    <Button onClick={onNextClicked}>Next</Button>
                                 </ButtonGroup>
                                 : null
                         }
