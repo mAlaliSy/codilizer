@@ -8,6 +8,11 @@ import JavaScriptExecutor from "./executors/languages_executors/es/EcmaScriptExe
 import ErrorHandler from "./executors/errorhandler/ErrorHandler";
 import Error from "./executors/errorhandler/Error";
 import Action from "./executors/actions/Action";
+import AssignmentAction from "./executors/actions/AssignmentAction";
+import VarDecAction from "./executors/actions/VarDecAction";
+import PrintAction from "./executors/actions/PrintAction";
+import EvaluateExpressionAction from "./executors/actions/EvaluateExpressionAction";
+import JumpAction from "./executors/actions/JumpAction";
 
 
 function App() {
@@ -20,7 +25,7 @@ function App() {
     let [executionState, setExecutionState] = useState({line: -1, variables: []});
     let [codeExecuted, setCodeExecuted] = useState(false);
     let [fatalError, setFatalError] = useState(false);
-    let [lastActionIndex, setLastActionIndex] = useState(0);
+    let [nexActionIndex, setLastActionIndex] = useState(0);
     let [errors, setErrors] = useState([]);
     let [actions, setActions] = useState(new Array<Action>());
 
@@ -62,6 +67,30 @@ function App() {
         setExecutionState({...executionState, line: 1});
     };
 
+    let getNextCommandText = () => {
+        if (!codeExecuted) return "-";
+        let action = actions[nexActionIndex];
+        if (action instanceof AssignmentAction) {
+            let assingmentAction = action as AssignmentAction;
+            return "Assign " + assingmentAction.value + " to variable " + assingmentAction.varName;
+        } else if (action instanceof VarDecAction) {
+            let varDecAction = action as VarDecAction;
+            let commandText = "Declare variable " + varDecAction.varName;
+            if (varDecAction.initialValue !== undefined)
+                commandText += " with initial value = " + varDecAction.initialValue;
+            return commandText;
+        } else if (action instanceof PrintAction) {
+            return "Log the message to console: " + (action as PrintAction).data;
+        } else if (action instanceof EvaluateExpressionAction) {
+            let expressionAction = action as EvaluateExpressionAction;
+            return "Evaluating expression: " + expressionAction.expression + " = " + expressionAction.result;
+        } else if (action instanceof JumpAction) {
+            return "Jump to line: " + action.lineNumber;
+        }
+
+        return action.message;
+    };
+
     return (
 
         <Container>
@@ -72,13 +101,15 @@ function App() {
                             language="javascript"
                             height={500}
                             width={'100%'}
-                            value={"var x = 3; \nfunction(){}\nif(x == 4) {\n\tx += 4;\n}"}
+                            value={"var x = 'GREAT!';\nfor(var i = 1; i <= 5; i++){\n\tconsole.log(x);\n}"}
                             editorDidMount={editorDidMount}
                         />
                     </div>
                     <Row className={"justify-content-center"}>
-                        <Button onClick={onExecuteClicked}
-                                className={"m-3"}>{codeExecuted ? "Reset" : "Execute"}</Button>
+                        {codeExecuted ? null :
+                            <Button onClick={onExecuteClicked}
+                                    className={"m-3"}>Execute</Button>
+                        }
                     </Row>
 
                 </Col>
@@ -124,13 +155,29 @@ function App() {
                                 </Row>
                             </Col>
                         </Row>
-                        <div style={{backgroundColor: "#eee", padding: 10, borderTopWidth: 1, borderTopStyle: 'solid', borderTopColor: '#ddd'}}>
-                            <span style={{color: "#282b38", fontWeight:'bold'}}>Next command:</span>
+                        <div style={{
+                            backgroundColor: "#eee",
+                            padding: 10,
+                            borderTopWidth: 1,
+                            borderTopStyle: 'solid',
+                            borderTopColor: '#ddd'
+                        }}>
+                            <span style={{color: "#282b38", fontWeight: 'bold'}}>Next command:</span>
                             <div>
-                                Evaluate Expression: 3 + 9
+                                {getNextCommandText()}
                             </div>
                         </div>
                     </div>
+                    <Row className={"justify-content-center"}>
+                        {
+                            codeExecuted ?
+                                <ButtonGroup className={"m-3"}>
+                                    <Button>Reset All</Button>
+                                    <Button>Next</Button>
+                                </ButtonGroup>
+                                : null
+                        }
+                    </Row>
                 </Col>
             </Row>
         </Container>
