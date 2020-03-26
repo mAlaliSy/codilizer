@@ -395,7 +395,7 @@ export default class JavaScriptExecutor extends ECMAScriptVisitor.ECMAScriptVisi
             value = this.getExpressionValue(ctx.initialiser().singleExpression());
         }
         this.activeSymbolTable.defineVariable(varName, value);
-        this.actions.push(new VarDecAction(varName, value));
+        this.actions.push(new VarDecAction(ctx.start.line, varName, value));
     }
 
     visitVariableDeclarationList(ctx: any): any {
