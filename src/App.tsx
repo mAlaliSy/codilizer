@@ -86,7 +86,7 @@ function App() {
                     <div className={"rounded-white state-container"}>
                         <h5 className={"text-center mt-2"}>Execution State</h5>
                         <div style={{width: '100%', height: 1, background: "#ddd"}}></div>
-                        <Row style={{height: '100%', width: '100%', margin: 0}}>
+                        <Row style={{flex: 1, width: '100%', margin: 0}}>
                             <Col sm={6} style={{
                                 borderRightWidth: 1,
                                 borderRightColor: '#ddd',
@@ -124,6 +124,12 @@ function App() {
                                 </Row>
                             </Col>
                         </Row>
+                        <div style={{backgroundColor: "#eee", padding: 10, borderTopWidth: 1, borderTopStyle: 'solid', borderTopColor: '#ddd'}}>
+                            <span style={{color: "#282b38", fontWeight:'bold'}}>Next command:</span>
+                            <div>
+                                Evaluate Expression: 3 + 9
+                            </div>
+                        </div>
                     </div>
                 </Col>
             </Row>

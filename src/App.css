@@ -38,4 +38,6 @@ html, body {
     height: 500px;
     margin-top: 20px;
     background: #fff;
+    display: flex;
+    flex-direction: column;
 }
