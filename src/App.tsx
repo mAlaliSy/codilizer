@@ -3,7 +3,7 @@ import './App.css';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import MonacoEditor from "react-monaco-editor";
 import {editor} from "monaco-editor";
-import {Button, ButtonGroup, Col, Container, Row} from "react-bootstrap";
+import {Button, ButtonGroup, Col, Container, ListGroup, Row, Table} from "react-bootstrap";
 import JavaScriptExecutor from "./executors/languages_executors/es/EcmaScriptExecutor";
 import ErrorHandler from "./executors/errorhandler/ErrorHandler";
 import Error from "./executors/errorhandler/Error";
@@ -65,7 +65,7 @@ function App() {
     return (
 
         <Container>
-            <Row className={"justify-content-center"}>
+            <Row className={"justify-content-center app-container"}>
                 <Col sm={12} md={6}>
                     <div className={"code-container"}>
                         <MonacoEditor
@@ -83,7 +83,48 @@ function App() {
 
                 </Col>
                 <Col sm={12} md={6}>
+                    <div className={"rounded-white state-container"}>
+                        <h5 className={"text-center mt-2"}>Execution State</h5>
+                        <div style={{width: '100%', height: 1, background: "#ddd"}}></div>
+                        <Row style={{height: '100%', width: '100%', margin: 0}}>
+                            <Col sm={6} style={{
+                                borderRightWidth: 1,
+                                borderRightColor: '#ddd',
+                                borderRightStyle: 'solid',
+                                boxSizing: 'border-box',
+                                padding: 0
+                            }}>
+                                <h6 className={"text-center mt-2"}>Variables</h6>
+                                <Table striped hover size="sm" style={{width: '100%'}}>
+                                    <thead>
+                                    <tr>
+                                        <th>Name</th>
+                                        <th>Value</th>
+                                    </tr>
+                                    </thead>
+                                    <tbody>
+                                    <tr>
+                                        <td>Mark</td>
+                                        <td>Otto</td>
+                                    </tr>
+                                    <tr>
+                                        <td>Jacob</td>
+                                        <td>Thornton</td>
+                                    </tr>
+                                    </tbody>
+                                </Table>
+                            </Col>
 
+                            <Col sm={6}>
+                                <h6 className={"text-center mt-2"}>Call stack</h6>
+                                <Row>
+                                    <Col>
+                                        Not implemented yet
+                                    </Col>
+                                </Row>
+                            </Col>
+                        </Row>
+                    </div>
                 </Col>
             </Row>
         </Container>
