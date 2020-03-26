@@ -59,7 +59,7 @@ export default class JavaScriptExecutor extends ECMAScriptVisitor.ECMAScriptVisi
 
     executeAll(): Array<Action> {
         this.actions = new Array<Action>();
-        this.visitStatement(this.parser.statement());
+        this.visitStatementList(this.parser.statementList());
         return this.actions;
     }
 
@@ -312,6 +312,7 @@ export default class JavaScriptExecutor extends ECMAScriptVisitor.ECMAScriptVisi
         } else if (ctx.variableStatement()) {
             this.visitVariableStatement(ctx.variableStatement());
         } else{
+            console.log(ctx);
             this.errorHandler.handleError(new ExecutionError(false, "Unsupported statement: " + ctx.start.getText()));
         }
     }
@@ -462,12 +463,14 @@ export default class JavaScriptExecutor extends ECMAScriptVisitor.ECMAScriptVisi
     }
 
     visitMemberDotExpression(ctx: any) : any {
-        if(ctx.singleExpression() !instanceof Parser.ECMAScriptParser.IdentifierExpressionContext){
-            this.errorHandler.handleError(new ExecutionError(true, "Only logging functions/member calls are supported"));
-            return;
-        }
+        // if(ctx.singleExpression() !instanceof Parser.ECMAScriptParser.IdentifierExpressionContext){
+        //     this.errorHandler.handleError(new ExecutionError(true, "Only logging functions/member calls are supported"));
+        //     return;
+        // }
         let object = ctx.singleExpression().Identifier().getText();
-        let identifierName = ctx.identifierName().Identifier()!!.getText();
+        let identifierName = ctx.identifierName().Identifier().getText();
+        console.log("OBJECT: " + object);
+        console.log("IDENTIFIER: " + identifierName);
         if(object !== "console" || identifierName !== "log"){
             this.errorHandler.handleError(new ExecutionError(true, "Only logging functions/member calls are supported"));
             return;
@@ -578,12 +581,14 @@ export default class JavaScriptExecutor extends ECMAScriptVisitor.ECMAScriptVisi
     }
 
 }
-
-
-let source = "var x = 3 + 5 * 4;";
-let executor = new JavaScriptExecutor(source, new class implements ErrorHandler {
-    handleError(error: ExecutionError): void {
-        console.error(error.message);
-    }
-});
-let result = executor.executeAll();
+//
+//
+// let source = "var x = 'GREAT!';\n" +
+//     "for(var i = 1; i <= 5; i = i + 1){\nconsole.log(x);" +
+//     "}";
+// let executor = new JavaScriptExecutor(source, new class implements ErrorHandler {
+//     handleError(error: ExecutionError): void {
+//         console.error(error.message);
+//     }
+// });
+// let result = executor.executeAll();

@@ -15,6 +15,11 @@ import EvaluateExpressionAction from "./executors/actions/EvaluateExpressionActi
 import JumpAction from "./executors/actions/JumpAction";
 
 
+interface ExecutionState {
+    line:number;
+    variables:any;
+}
+
 function App() {
 
     let editor: editor.IStandaloneCodeEditor;
@@ -22,7 +27,7 @@ function App() {
 
     let decorator: string[] = [];
 
-    let [executionState, setExecutionState] = useState({line: -1, variables: []});
+    let [executionState, setExecutionState] = useState<ExecutionState>({line: -1, variables: {}});
     let [codeExecuted, setCodeExecuted] = useState(false);
     let [fatalError, setFatalError] = useState(false);
     let [nextActionIndex, setNextActionIndex] = useState(0);
@@ -55,16 +60,16 @@ function App() {
             if (error.fatal) setFatalError(true);
         }
     };
-    let executeNextAction = ()=>{
+    let executeNextAction = () => {
         let action = actions[nextActionIndex];
         if (action instanceof AssignmentAction) {
             let assignmentAction = action as AssignmentAction;
-            let variables : any = {...executionState.variables};
+            let variables: any = {...executionState.variables};
             variables[assignmentAction.varName] = assignmentAction.value;
             setExecutionState({...executionState, variables});
         } else if (action instanceof VarDecAction) {
             let varDecAction = action as VarDecAction;
-            let variables : any = {...executionState.variables};
+            let variables: any = {...executionState.variables};
             variables[varDecAction.varName] = "undefined";
             if (varDecAction.initialValue !== undefined)
                 variables[varDecAction.varName] = varDecAction.initialValue;
@@ -84,13 +89,15 @@ function App() {
         setCodeExecuted(true);
         setFatalError(false);
         let executor = new JavaScriptExecutor(editor.getModel()?.getValue()!!, errorHandler);
-        setActions(executor.executeAll());
-        setExecutionState({...executionState, line: 1});
+        let resultActions = executor.executeAll();
+        console.log(resultActions);
+        setActions(resultActions);
+        setExecutionState({variables: {}, line: 1});
     };
 
-    let onNextClicked = ()=>{
+    let onNextClicked = () => {
         executeNextAction();
-        setNextActionIndex(nextActionIndex+1);
+        setNextActionIndex(nextActionIndex + 1);
     };
 
     let getNextCommandText = () => {
@@ -117,6 +124,14 @@ function App() {
         return action.message;
     };
 
+    let varTable = Object.keys(executionState.variables).map((variable: any) => {
+        let val = executionState.variables[variable];
+        return (<tr>
+            <td>{variable}</td>
+            <td>{val}</td>
+        </tr>);
+    });
+
     return (
 
         <Container>
@@ -127,7 +142,7 @@ function App() {
                             language="javascript"
                             height={500}
                             width={'100%'}
-                            value={"var x = 'GREAT!';\nfor(var i = 1; i <= 5; i++){\n\tconsole.log(x);\n}"}
+                            value={"var x = 'GREAT!';\nfor(var i = 1; i <= 5; i = i + 1){\n\tvar y = x + 1;\n}"}
                             editorDidMount={editorDidMount}
                         />
                     </div>
@@ -160,14 +175,7 @@ function App() {
                                     </tr>
                                     </thead>
                                     <tbody>
-                                    <tr>
-                                        <td>Mark</td>
-                                        <td>Otto</td>
-                                    </tr>
-                                    <tr>
-                                        <td>Jacob</td>
-                                        <td>Thornton</td>
-                                    </tr>
+                                    {varTable}
                                     </tbody>
                                 </Table>
                             </Col>
