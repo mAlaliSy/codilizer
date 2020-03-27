@@ -11,6 +11,7 @@ import ExecutionError from "../../errorhandler/Error";
 import AssignmentAction from "../../actions/AssignmentAction";
 import VarDecAction from "../../actions/VarDecAction";
 import PrintAction from "../../actions/PrintAction";
+import DeleteVariableAction from "../../actions/DeleteVariableAction";
 
 const antlr4 = require('antlr4/index');
 const ECMAScriptLexer = require("./parser/ECMAScriptLexer");
@@ -31,7 +32,7 @@ class ExpressionResult {
     }
 }
 
-export default class JavaScriptExecutor extends ECMAScriptVisitor.ECMAScriptVisitor implements Executor{
+export default class JavaScriptExecutor extends ECMAScriptVisitor.ECMAScriptVisitor implements Executor {
     lexer: any;
     parser: any;
     actions: any = [];
@@ -101,6 +102,7 @@ export default class JavaScriptExecutor extends ECMAScriptVisitor.ECMAScriptVisi
         } else {
             right = rightExp.value;
         }
+
 
         let result;
         switch (op) {
@@ -243,8 +245,11 @@ export default class JavaScriptExecutor extends ECMAScriptVisitor.ECMAScriptVisi
     visitLiteral(ctx: any): any {
         if (ctx.NullLiteral()) return null;
         else if (ctx.BooleanLiteral()) return new ExpressionResult(ExpressionResultType.VALUE, ctx.BooleanLiteral()?.getText() === 'true');
-        else if (ctx.StringLiteral()) return new ExpressionResult(ExpressionResultType.VALUE, ctx.StringLiteral()?.getText());
-        else if (ctx.numericLiteral()) return this.visitNumericLiteral(ctx.numericLiteral()!!);
+        else if (ctx.StringLiteral()) {
+            let str = ctx.StringLiteral()?.getText();
+            str = str.substring(1, str.length - 1);
+            return new ExpressionResult(ExpressionResultType.VALUE, str);
+        } else if (ctx.numericLiteral()) return this.visitNumericLiteral(ctx.numericLiteral()!!);
     }
 
     visitNumericLiteral(ctx: any): any {
@@ -257,7 +262,7 @@ export default class JavaScriptExecutor extends ECMAScriptVisitor.ECMAScriptVisi
         return this.visitLiteral(ctx.literal());
     }
 
-    visitNotExpression(ctx:any): any {
+    visitNotExpression(ctx: any): any {
         let expResult = this.visitSingleExpression(ctx.singleExpression());
         let value;
         if (expResult.type === ExpressionResultType.VARIABLE) {
@@ -285,8 +290,8 @@ export default class JavaScriptExecutor extends ECMAScriptVisitor.ECMAScriptVisi
         else if (ctx instanceof Parser.ECMAScriptParser.EqualityExpressionContext) return this.visitEqualityExpression(ctx);
         else if (ctx instanceof Parser.ECMAScriptParser.AssignmentExpressionContext) return this.visitAssignmentExpression(ctx);
         else if (ctx instanceof Parser.ECMAScriptParser.IdentifierExpressionContext) return this.visitIdentifierExpression(ctx);
-        else if(ctx instanceof Parser.ECMAScriptParser.ArgumentsExpressionContext) return this.visitArgumentsExpression(ctx);
-        else if(ctx instanceof Parser.ECMAScriptParser.MemberDotExpressionContext) return this.visitMemberDotExpression(ctx);
+        else if (ctx instanceof Parser.ECMAScriptParser.ArgumentsExpressionContext) return this.visitArgumentsExpression(ctx);
+        else if (ctx instanceof Parser.ECMAScriptParser.MemberDotExpressionContext) return this.visitMemberDotExpression(ctx);
         else {
             console.log(ctx);
             throw new Error("Unhandled expression type: " + typeof (ctx));
@@ -308,12 +313,13 @@ export default class JavaScriptExecutor extends ECMAScriptVisitor.ECMAScriptVisi
         } else if (ctx.ifStatement()) {
             this.visitIfStatement(ctx.ifStatement());
         } else if (ctx.iterationStatement()) {
-             this.visitIterationStatement(ctx.iterationStatement()!!);
+            this.visitIterationStatement(ctx.iterationStatement()!!);
         } else if (ctx.variableStatement()) {
             this.visitVariableStatement(ctx.variableStatement());
-        } else{
-            console.log(ctx);
-            this.errorHandler.handleError(new ExecutionError(false, "Unsupported statement: " + ctx.start.getText()));
+        } else if (ctx.emptyStatement()) {
+            // DO NOTHING
+        } else {
+            this.errorHandler.handleError(new ExecutionError(false, "Unsupported statement at line " + ctx.start.line));
         }
     }
 
@@ -369,12 +375,18 @@ export default class JavaScriptExecutor extends ECMAScriptVisitor.ECMAScriptVisi
         }
     }
 
+    addVariablesDeleteActions(lineNumber: number) {
+        Object.keys(this.activeSymbolTable.getDirectEntries()).forEach(varName => {
+            this.actions.push(new DeleteVariableAction(lineNumber, varName));
+        })
+    }
 
     visitBlock(ctx: any): any {
         this.activeSymbolTable = new SymbolTable(this.activeSymbolTable);
         let statementList = ctx.statementList();
         if (statementList)
             this.visitStatementList(statementList);
+        this.addVariablesDeleteActions(ctx.CloseBrace().line);
         this.activeSymbolTable = this.activeSymbolTable.parent!!;
     }
 
@@ -416,7 +428,7 @@ export default class JavaScriptExecutor extends ECMAScriptVisitor.ECMAScriptVisi
         }
     }
 
-    visitForVarStatement(ctx:any): any {
+    visitForVarStatement(ctx: any): any {
         this.actions.push(new Action(ctx.start.line, "Executing for statement"));
         this.visitVariableDeclarationList(ctx.variableDeclarationList());
         while (true) {
@@ -462,26 +474,24 @@ export default class JavaScriptExecutor extends ECMAScriptVisitor.ECMAScriptVisi
         }
     }
 
-    visitMemberDotExpression(ctx: any) : any {
-        // if(ctx.singleExpression() !instanceof Parser.ECMAScriptParser.IdentifierExpressionContext){
-        //     this.errorHandler.handleError(new ExecutionError(true, "Only logging functions/member calls are supported"));
-        //     return;
-        // }
+    visitMemberDotExpression(ctx: any): any {
+        if (!ctx.singleExpression || ctx.singleExpression().Identifier) {
+            this.errorHandler.handleError(new ExecutionError(true, "Only logging functions/member calls are supported"));
+            return;
+        }
         let object = ctx.singleExpression().Identifier().getText();
         let identifierName = ctx.identifierName().Identifier().getText();
-        console.log("OBJECT: " + object);
-        console.log("IDENTIFIER: " + identifierName);
-        if(object !== "console" || identifierName !== "log"){
+        if (object !== "console" || identifierName !== "log") {
             this.errorHandler.handleError(new ExecutionError(true, "Only logging functions/member calls are supported"));
             return;
         }
 
     }
 
-    visitArgumentsExpression(ctx: any) : any {
+    visitArgumentsExpression(ctx: any): any {
         this.visitMemberDotExpression(ctx.singleExpression());
-        let argumentValues:any[] = [];
-        ctx.arguments().argumentList()?.singleExpression().forEach((exp:any)=>{
+        let argumentValues: any[] = [];
+        ctx.arguments().argumentList()?.singleExpression().forEach((exp: any) => {
             argumentValues.push(this.getExpressionValue(exp));
         });
         this.actions.push(new PrintAction(ctx.start.line, argumentValues));
@@ -583,7 +593,9 @@ export default class JavaScriptExecutor extends ECMAScriptVisitor.ECMAScriptVisi
 }
 //
 //
-// let source = "var x = 'GREAT!';\n" +
+// let source = "console.log(4 + 3);";
+//
+// "var x = 'GREAT!';\n" +
 //     "for(var i = 1; i <= 5; i = i + 1){\nconsole.log(x);" +
 //     "}";
 // let executor = new JavaScriptExecutor(source, new class implements ErrorHandler {
@@ -592,3 +604,4 @@ export default class JavaScriptExecutor extends ECMAScriptVisitor.ECMAScriptVisi
 //     }
 // });
 // let result = executor.executeAll();
+//

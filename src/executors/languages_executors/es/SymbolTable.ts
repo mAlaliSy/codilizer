@@ -48,5 +48,9 @@ export default class SymbolTable {
         this.entries[name].value = value;
     }
 
+    getDirectEntries():any{
+        return this.entries;
+    }
+
 
 }

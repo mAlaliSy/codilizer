@@ -33,16 +33,21 @@ function App() {
     let [nextActionIndex, setNextActionIndex] = useState(0);
     let [errors, setErrors] = useState([]);
     let [actions, setActions] = useState(new Array<Action>());
+    let [consoleContent, setConsoleContent] = useState("");
+
+    let [code, setCode] = useState("var x = 'GREAT!';\nfor(var i = 1; i <= 5; i = i + 1){\n\tvar y = x + i;\n\tconsole.log('Test ' + x);\n}");
 
     let editorDidMount = (ed: editor.IStandaloneCodeEditor, mon: any) => {
         ed.focus();
 
         editor = ed;
         monaco = mon;
+
     };
 
     useEffect(() => {
         if (!codeExecuted) return;
+        console.log("Update Decorator");
         decorator = editor?.deltaDecorations(decorator, [
             {
                 range: new monaco.Range(executionState.line, 1, executionState.line, 1),
@@ -51,9 +56,16 @@ function App() {
                     className: 'lineDecorator',
                     glyphMarginClassName: 'lineDecorator'
                 }
-            }
+            },  {
+                range: new monaco.Range(executionState.line, 1, executionState.line, 1),
+                options: {
+                    isWholeLine: true,
+                    className: 'lineDecorator',
+                    glyphMarginClassName: 'lineDecorator'
+                }
+            },
         ]);
-    }, [executionState]);
+    }, [executionState.line]);
 
     let errorHandler = new class ErrorHandler {
         handleError(error: Error): void {
@@ -64,18 +76,19 @@ function App() {
         let action = actions[nextActionIndex];
         if (action instanceof AssignmentAction) {
             let assignmentAction = action as AssignmentAction;
-            let variables: any = {...executionState.variables};
+            let variables: any = executionState.variables;
             variables[assignmentAction.varName] = assignmentAction.value;
             setExecutionState({...executionState, variables});
         } else if (action instanceof VarDecAction) {
             let varDecAction = action as VarDecAction;
-            let variables: any = {...executionState.variables};
+            let variables: any = executionState.variables;
             variables[varDecAction.varName] = "undefined";
             if (varDecAction.initialValue !== undefined)
                 variables[varDecAction.varName] = varDecAction.initialValue;
             setExecutionState({...executionState, variables});
         } else if (action instanceof PrintAction) {
-            // TODO : IMPLEMENT THE CONSOLE
+            let printAction = action as PrintAction;
+            setConsoleContent(consoleContent + "\n" + printAction.data);
         } else if (action instanceof EvaluateExpressionAction) {
             // DO NOTHING
         } else if (action instanceof JumpAction) {
@@ -88,16 +101,21 @@ function App() {
         setNextActionIndex(0);
         setCodeExecuted(true);
         setFatalError(false);
-        let executor = new JavaScriptExecutor(editor.getModel()?.getValue()!!, errorHandler);
+        var sourceCode = editor.getModel()?.getValue()!!;
+        let executor = new JavaScriptExecutor(sourceCode, errorHandler);
         let resultActions = executor.executeAll();
         console.log(resultActions);
         setActions(resultActions);
         setExecutionState({variables: {}, line: 1});
+        setCode(sourceCode);
     };
 
     let onNextClicked = () => {
         executeNextAction();
-        setNextActionIndex(nextActionIndex + 1);
+        let updatedNextAction = nextActionIndex + 1;
+        setNextActionIndex(updatedNextAction);
+        if(nextActionIndex < actions.length)
+            setExecutionState({...executionState, line: actions[updatedNextAction].lineNumber })
     };
 
     let getNextCommandText = () => {
@@ -126,6 +144,7 @@ function App() {
 
     let varTable = Object.keys(executionState.variables).map((variable: any) => {
         let val = executionState.variables[variable];
+        console.log("VAR:" + variable);
         return (<tr>
             <td>{variable}</td>
             <td>{val}</td>
@@ -141,8 +160,9 @@ function App() {
                         <MonacoEditor
                             language="javascript"
                             height={500}
+                            options={{minimap: {enabled: false}}}
                             width={'100%'}
-                            value={"var x = 'GREAT!';\nfor(var i = 1; i <= 5; i = i + 1){\n\tvar y = x + 1;\n}"}
+                            value={code}
                             editorDidMount={editorDidMount}
                         />
                     </div>
@@ -180,11 +200,14 @@ function App() {
                                 </Table>
                             </Col>
 
-                            <Col sm={6}>
-                                <h6 className={"text-center mt-2"}>Call stack</h6>
-                                <Row>
+                            <Col style={{background: "#222", color: "#fff"}} sm={6}>
+                                <h6 className={"text-center mt-2"}>Console</h6>
+                                <Row style={{borderTopWidth: 1,
+                                    borderTopColor: '#fff',
+                                    borderTopStyle: 'solid',
+                                    boxSizing: 'border-box',}}>
                                     <Col>
-                                        Not implemented yet
+                                        {consoleContent}
                                     </Col>
                                 </Row>
                             </Col>
@@ -207,7 +230,9 @@ function App() {
                             codeExecuted ?
                                 <ButtonGroup className={"m-3"}>
                                     <Button>Reset All</Button>
-                                    <Button onClick={onNextClicked}>Next</Button>
+                                    {nextActionIndex >= actions.length ? null :
+                                        <Button onClick={onNextClicked}>Next</Button>
+                                    }
                                 </ButtonGroup>
                                 : null
                         }
