@@ -1,11 +1,10 @@
-import React, {useEffect, useState} from 'react';
+import React, {useState} from 'react';
 import './App.css';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import MonacoEditor from "react-monaco-editor";
 import {editor} from "monaco-editor";
-import {Button, ButtonGroup, Col, Container, ListGroup, Row, Table} from "react-bootstrap";
+import {Button, ButtonGroup, Col, Container, Row, Spinner, Table} from "react-bootstrap";
 import JavaScriptExecutor from "./executors/languages_executors/es/EcmaScriptExecutor";
-import ErrorHandler from "./executors/errorhandler/ErrorHandler";
 import Error from "./executors/errorhandler/Error";
 import Action from "./executors/actions/Action";
 import AssignmentAction from "./executors/actions/AssignmentAction";
@@ -20,13 +19,11 @@ interface ExecutionState {
     variables: any;
 }
 
+let monacoEditor: editor.IStandaloneCodeEditor;
+let monaco: any;
+let lineHeight = 24;
+
 function App() {
-
-    let editor: editor.IStandaloneCodeEditor;
-    let monaco: any;
-    let lineHeight = 24;
-
-    let decorator: string[] = [];
 
     let [executionState, setExecutionState] = useState<ExecutionState>({line: -1, variables: {}});
     let [codeExecuted, setCodeExecuted] = useState(false);
@@ -35,13 +32,14 @@ function App() {
     let [errors, setErrors] = useState([]);
     let [actions, setActions] = useState(new Array<Action>());
     let [consoleContent, setConsoleContent] = useState("");
+    let [executing, setExecuting] = useState(false);
 
     let [code, setCode] = useState("var x = 'GREAT!';\nfor(var i = 1; i <= 2; i = i + 1){\n\tvar y = x + i;\n\tconsole.log('Test ' + x);\n}");
 
     let editorDidMount = (ed: editor.IStandaloneCodeEditor, mon: any) => {
         ed.focus();
 
-        editor = ed;
+        monacoEditor = ed;
         // lineHeight = editor.getRawOptions().lineHeight!!;
         monaco = mon;
 
@@ -99,16 +97,21 @@ function App() {
         }
     };
     let onExecuteClicked = () => {
-        if (editor.getModel()?.getValue() == null) return;
+        if (monacoEditor.getModel()?.getValue() == null) return;
         setErrors([]);
         setNextActionIndex(0);
-        setCodeExecuted(true);
         setFatalError(false);
-        var sourceCode = editor.getModel()?.getValue()!!;
-        let executor = new JavaScriptExecutor(sourceCode, errorHandler);
-        let resultActions = executor.executeAll();
-        console.log(resultActions);
-        setActions(resultActions);
+        var sourceCode = monacoEditor.getModel()?.getValue()!!;
+        var sourceCode = monacoEditor.getModel()?.getValue()!!;
+        setExecuting(true);
+        new Promise<Action[]>((resolve, reject)=>{
+            let executor = new JavaScriptExecutor(sourceCode, errorHandler);
+            resolve(executor.executeAll())
+        }).then((result:Action[])=>{
+            setActions(result);
+            setCodeExecuted(true);
+            setExecuting(false);
+        })
         setExecutionState({variables: {}, line: 1});
         setCode(sourceCode);
     };
@@ -118,8 +121,15 @@ function App() {
         executeNextAction();
         let updatedNextAction = nextActionIndex + 1;
         setNextActionIndex(updatedNextAction);
-        if (nextActionIndex < actions.length)
+        if (updatedNextAction < actions.length)
             setExecutionState({...executionState, line: actions[updatedNextAction].lineNumber})
+    };
+
+    let onResetClicked = ()=>{
+        setCodeExecuted(false)
+        setExecutionState({line: 0, variables: {}});
+        setActions([]);
+        setNextActionIndex(0);
     };
 
     let getNextCommandText = () => {
@@ -189,6 +199,7 @@ function App() {
                             <Button onClick={onExecuteClicked}
                                     className={"m-3"}>Execute</Button>
                         }
+                        {executing? <Spinner animation="grow" /> : null}
                     </Row>
 
                 </Col>
@@ -251,7 +262,7 @@ function App() {
                         {
                             codeExecuted ?
                                 <ButtonGroup className={"m-3"}>
-                                    <Button>Reset All</Button>
+                                    <Button onClick={onResetClicked}>Reset All</Button>
                                     {nextActionIndex >= actions.length ? null :
                                         <Button onClick={onNextClicked}>Next</Button>
                                     }
