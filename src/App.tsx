@@ -1,4 +1,4 @@
-import React, {useState} from 'react';
+import React, {useEffect, useRef, useState} from 'react';
 import './App.css';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import MonacoEditor from "react-monaco-editor";
@@ -22,6 +22,7 @@ interface ExecutionState {
 let monacoEditor: editor.IStandaloneCodeEditor;
 let monaco: any;
 let lineHeight = 24;
+const PLAYING_SPEED = 2000;
 
 function App() {
 
@@ -33,6 +34,22 @@ function App() {
     let [actions, setActions] = useState(new Array<Action>());
     let [consoleContent, setConsoleContent] = useState("");
     let [executing, setExecuting] = useState(false);
+    let [playing, setPlaying] = useState(false);
+    // const playingRef = useRef(playing);
+    // playingRef.current = playing;
+    let indexRef = useRef(nextActionIndex);
+    indexRef.current = nextActionIndex;
+    useEffect(() => {
+        if (!codeExecuted) return;
+        onNextUpdated();
+
+        if (playing) {
+            let timeoutId = setTimeout(() => {
+                setNextActionIndex(nextActionIndex + 1);
+            }, PLAYING_SPEED);
+            return () => clearTimeout(timeoutId);
+        }
+    }, [nextActionIndex, playing]);
 
     let [code, setCode] = useState("var x = 'GREAT!';\nfor(var i = 1; i <= 2; i = i + 1){\n\tvar y = x + i;\n\tconsole.log('Test ' + x);\n}");
 
@@ -73,8 +90,8 @@ function App() {
         }
     };
     let executeNextAction = () => {
-        if(nextActionIndex >= actions.length) return;
-        let action = actions[nextActionIndex];
+        if (nextActionIndex >= actions.length) return;
+        let action = actions[nextActionIndex - 1];
         if (action instanceof AssignmentAction) {
             let assignmentAction = action as AssignmentAction;
             let variables: any = executionState.variables;
@@ -104,10 +121,10 @@ function App() {
         var sourceCode = monacoEditor.getModel()?.getValue()!!;
         var sourceCode = monacoEditor.getModel()?.getValue()!!;
         setExecuting(true);
-        new Promise<Action[]>((resolve, reject)=>{
+        new Promise<Action[]>((resolve, reject) => {
             let executor = new JavaScriptExecutor(sourceCode, errorHandler);
             resolve(executor.executeAll())
-        }).then((result:Action[])=>{
+        }).then((result: Action[]) => {
             setActions(result);
             setCodeExecuted(true);
             setExecuting(false);
@@ -116,25 +133,53 @@ function App() {
         setCode(sourceCode);
     };
 
-    let onNextClicked = () => {
-        if(nextActionIndex > actions.length) return;
-        executeNextAction();
-        let updatedNextAction = nextActionIndex + 1;
-        setNextActionIndex(updatedNextAction);
-        if (updatedNextAction < actions.length)
-            setExecutionState({...executionState, line: actions[updatedNextAction].lineNumber})
+    let onPlayClicked = () => {
+        setPlaying(!playing);
+        // if (playing) {
+        //     setPlaying(false);
+        // } else {
+        //     setPlaying(true);
+        //     let playCallback = () => {
+        //         console.log("Playing: " + nextActionIndex);
+        //         if (!playingRef.current || nextActionIndex >= actions.length) return;
+        //         console.log("N")
+        //         onNextClicked();
+        //         setTimeout(playCallback, PLAYING_SPEED);
+        //     };
+        //     setTimeout(playCallback, PLAYING_SPEED);
+        // }
     };
 
-    let onResetClicked = ()=>{
+    let onNextUpdated = () => {
+        if (nextActionIndex > actions.length) return;
+        executeNextAction();
+        if (nextActionIndex < actions.length)
+            setExecutionState({...executionState, line: actions[nextActionIndex].lineNumber})
+    };
+
+    let onNextClicked = () => {
+        setNextActionIndex(nextActionIndex + 1);
+        // if (nextActionIndex > actions.length) return;
+        // console.log("on next");
+        // executeNextAction();
+        // let updatedNextAction = nextActionIndex + 1;
+        // setNextActionIndex(updatedNextAction);
+        // if (updatedNextAction < actions.length)
+        //     setExecutionState({...executionState, line: actions[updatedNextAction].lineNumber})
+    };
+
+    let onResetClicked = () => {
         setCodeExecuted(false)
         setExecutionState({line: 0, variables: {}});
         setActions([]);
         setNextActionIndex(0);
+        setPlaying(false);
+        setConsoleContent("");
     };
 
     let getNextCommandText = () => {
         if (!codeExecuted) return "-";
-        if (nextActionIndex>=actions.length) return "-";
+        if (nextActionIndex >= actions.length) return "-";
         let action = actions[nextActionIndex];
         if (action instanceof AssignmentAction) {
             let assingmentAction = action as AssignmentAction;
@@ -159,7 +204,6 @@ function App() {
 
     let varTable = Object.keys(executionState.variables).map((variable: any) => {
         let val = executionState.variables[variable];
-        console.log("VAR:" + variable);
         return (<tr>
             <td>{variable}</td>
             <td>{val}</td>
@@ -180,7 +224,7 @@ function App() {
                                     height: lineHeight / 2,
                                     borderRadius: 50,
                                     background: "#782aff",
-                                    marginTop: lineHeight * (executionState.line-0.75)
+                                    marginTop: lineHeight * (executionState.line - 0.75)
                                 }}></div>
                             : null}
                         <div style={{flex: 1}}>
@@ -199,7 +243,7 @@ function App() {
                             <Button onClick={onExecuteClicked}
                                     className={"m-3"}>Execute</Button>
                         }
-                        {executing? <Spinner animation="grow" /> : null}
+                        {executing ? <Spinner animation="grow"/> : null}
                     </Row>
 
                 </Col>
@@ -262,9 +306,12 @@ function App() {
                         {
                             codeExecuted ?
                                 <ButtonGroup className={"m-3"}>
-                                    <Button onClick={onResetClicked}>Reset All</Button>
+                                    <Button style={{width: 120}} onClick={onResetClicked}>Reset All</Button>
                                     {nextActionIndex >= actions.length ? null :
-                                        <Button onClick={onNextClicked}>Next</Button>
+                                        <>
+                                            <Button style={{width: 120}} disabled={playing} onClick={onNextClicked}>Next</Button>
+                                            <Button style={{width: 120}} onClick={onPlayClicked}>{playing ? "Pause" : "Play"}</Button>
+                                        </>
                                     }
                                 </ButtonGroup>
                                 : null
