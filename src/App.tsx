@@ -16,14 +16,15 @@ import JumpAction from "./executors/actions/JumpAction";
 
 
 interface ExecutionState {
-    line:number;
-    variables:any;
+    line: number;
+    variables: any;
 }
 
 function App() {
 
     let editor: editor.IStandaloneCodeEditor;
     let monaco: any;
+    let lineHeight = 24;
 
     let decorator: string[] = [];
 
@@ -35,37 +36,38 @@ function App() {
     let [actions, setActions] = useState(new Array<Action>());
     let [consoleContent, setConsoleContent] = useState("");
 
-    let [code, setCode] = useState("var x = 'GREAT!';\nfor(var i = 1; i <= 5; i = i + 1){\n\tvar y = x + i;\n\tconsole.log('Test ' + x);\n}");
+    let [code, setCode] = useState("var x = 'GREAT!';\nfor(var i = 1; i <= 2; i = i + 1){\n\tvar y = x + i;\n\tconsole.log('Test ' + x);\n}");
 
     let editorDidMount = (ed: editor.IStandaloneCodeEditor, mon: any) => {
         ed.focus();
 
         editor = ed;
+        // lineHeight = editor.getRawOptions().lineHeight!!;
         monaco = mon;
 
     };
 
-    useEffect(() => {
-        if (!codeExecuted) return;
-        console.log("Update Decorator");
-        decorator = editor?.deltaDecorations(decorator, [
-            {
-                range: new monaco.Range(executionState.line, 1, executionState.line, 1),
-                options: {
-                    isWholeLine: true,
-                    className: 'lineDecorator',
-                    glyphMarginClassName: 'lineDecorator'
-                }
-            },  {
-                range: new monaco.Range(executionState.line, 1, executionState.line, 1),
-                options: {
-                    isWholeLine: true,
-                    className: 'lineDecorator',
-                    glyphMarginClassName: 'lineDecorator'
-                }
-            },
-        ]);
-    }, [executionState.line]);
+    // useEffect(() => {
+    //     if (!codeExecuted) return;
+    //     console.log("Update Decorator");
+    //     decorator = editor?.deltaDecorations(decorator, [
+    //         {
+    //             range: new monaco.Range(executionState.line, 1, executionState.line, 1),
+    //             options: {
+    //                 isWholeLine: true,
+    //                 className: 'lineDecorator',
+    //                 glyphMarginClassName: 'lineDecorator'
+    //             }
+    //         }, {
+    //             range: new monaco.Range(executionState.line, 1, executionState.line, 1),
+    //             options: {
+    //                 isWholeLine: true,
+    //                 className: 'lineDecorator',
+    //                 glyphMarginClassName: 'lineDecorator'
+    //             }
+    //         },
+    //     ]);
+    // }, [executionState.line]);
 
     let errorHandler = new class ErrorHandler {
         handleError(error: Error): void {
@@ -73,6 +75,7 @@ function App() {
         }
     };
     let executeNextAction = () => {
+        if(nextActionIndex >= actions.length) return;
         let action = actions[nextActionIndex];
         if (action instanceof AssignmentAction) {
             let assignmentAction = action as AssignmentAction;
@@ -111,15 +114,17 @@ function App() {
     };
 
     let onNextClicked = () => {
+        if(nextActionIndex > actions.length) return;
         executeNextAction();
         let updatedNextAction = nextActionIndex + 1;
         setNextActionIndex(updatedNextAction);
-        if(nextActionIndex < actions.length)
-            setExecutionState({...executionState, line: actions[updatedNextAction].lineNumber })
+        if (nextActionIndex < actions.length)
+            setExecutionState({...executionState, line: actions[updatedNextAction].lineNumber})
     };
 
     let getNextCommandText = () => {
         if (!codeExecuted) return "-";
+        if (nextActionIndex>=actions.length) return "-";
         let action = actions[nextActionIndex];
         if (action instanceof AssignmentAction) {
             let assingmentAction = action as AssignmentAction;
@@ -157,14 +162,27 @@ function App() {
             <Row className={"justify-content-center app-container"}>
                 <Col sm={12} md={6}>
                     <div className={"code-container"}>
-                        <MonacoEditor
-                            language="javascript"
-                            height={500}
-                            options={{minimap: {enabled: false}}}
-                            width={'100%'}
-                            value={code}
-                            editorDidMount={editorDidMount}
-                        />
+                        {codeExecuted ?
+                            <div
+                                style={{
+                                    minWidth: lineHeight / 2,
+                                    minHeight: lineHeight / 2,
+                                    height: lineHeight / 2,
+                                    borderRadius: 50,
+                                    background: "#782aff",
+                                    marginTop: lineHeight * (executionState.line-0.75)
+                                }}></div>
+                            : null}
+                        <div style={{flex: 1}}>
+                            <MonacoEditor
+                                language="javascript"
+                                height={500}
+                                options={{minimap: {enabled: false}, lineHeight, lineDecorationsWidth: 0}}
+                                width={'100%'}
+                                value={code}
+                                editorDidMount={editorDidMount}
+                            />
+                        </div>
                     </div>
                     <Row className={"justify-content-center"}>
                         {codeExecuted ? null :
@@ -202,12 +220,16 @@ function App() {
 
                             <Col style={{background: "#222", color: "#fff"}} sm={6}>
                                 <h6 className={"text-center mt-2"}>Console</h6>
-                                <Row style={{borderTopWidth: 1,
+                                <Row style={{
+                                    borderTopWidth: 1,
                                     borderTopColor: '#fff',
                                     borderTopStyle: 'solid',
-                                    boxSizing: 'border-box',}}>
+                                    boxSizing: 'border-box',
+                                }}>
                                     <Col>
-                                        {consoleContent}
+                                        {consoleContent.split('\n').map(i => {
+                                            return <p>{i}</p>
+                                        })}
                                     </Col>
                                 </Row>
                             </Col>
