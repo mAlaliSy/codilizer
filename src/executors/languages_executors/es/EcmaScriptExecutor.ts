@@ -387,12 +387,13 @@ export default class JavaScriptExecutor extends ECMAScriptVisitor.ECMAScriptVisi
         let statementList = ctx.statementList();
         if (statementList)
             this.visitStatementList(statementList);
-        this.addVariablesDeleteActions(ctx.CloseBrace().line);
+        // this.addVariablesDeleteActions(ctx.CloseBrace().line);
         this.activeSymbolTable = this.activeSymbolTable.parent!!;
     }
 
     visitIfStatement(ctx: any): any {
-        if (this.evaluateLogicalExpressionSequence(ctx)) {
+        this.actions.push(new Action(ctx.start.line, "Evaluating if condition"));
+        if (this.evaluateLogicalExpressionSequence(ctx.expressionSequence())) {
             if (ctx.statement().length > 0)
                 this.visitStatement(ctx.statement()[0])
         } else {
@@ -404,6 +405,8 @@ export default class JavaScriptExecutor extends ECMAScriptVisitor.ECMAScriptVisi
 
     visitVariableDeclaration(ctx: any): any {
         let varName = ctx.Identifier().getText();
+        console.log("I AM ST** ADDING THIS VAR:");
+        console.log(ctx.start);
         this.actions.push(new VarDecAction(ctx.start.line, varName));
         let value = undefined;
         if (ctx.initialiser()) {
@@ -432,6 +435,7 @@ export default class JavaScriptExecutor extends ECMAScriptVisitor.ECMAScriptVisi
 
     visitForVarStatement(ctx: any): any {
         this.actions.push(new Action(ctx.start.line, "Executing for statement"));
+        // this.activeSymbolTable = new SymbolTable(this.activeSymbolTable);
         this.visitVariableDeclarationList(ctx.variableDeclarationList());
         while (true) {
             this.actions.push(new Action(ctx.expressionSequence()[0].start.line, "Evaluating for condition"));

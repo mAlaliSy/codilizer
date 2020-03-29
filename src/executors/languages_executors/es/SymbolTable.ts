@@ -27,9 +27,9 @@ export default class SymbolTable {
     }
 
     defineVariable(name: string, value: any = undefined) {
-        if (this.entries[name]) {
-            throw new AlreadyDefinedIdentifier();
-        }
+        // if (this.entries[name]) {
+        //     throw new AlreadyDefinedIdentifier();
+        // }
         this.entries[name] = new TableEntry(EntryType.VARIABLE, value);
     }
 
