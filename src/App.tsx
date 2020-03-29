@@ -12,6 +12,7 @@ import VarDecAction from "./executors/actions/VarDecAction";
 import PrintAction from "./executors/actions/PrintAction";
 import EvaluateExpressionAction from "./executors/actions/EvaluateExpressionAction";
 import JumpAction from "./executors/actions/JumpAction";
+import VarInitAction from "./executors/actions/VarInitAction";
 
 
 interface ExecutionState {
@@ -101,8 +102,11 @@ function App() {
             let varDecAction = action as VarDecAction;
             let variables: any = executionState.variables;
             variables[varDecAction.varName] = "undefined";
-            if (varDecAction.initialValue !== undefined)
-                variables[varDecAction.varName] = varDecAction.initialValue;
+            setExecutionState({...executionState, variables});
+        } else if (action instanceof VarInitAction) {
+            let varInitAction = action as VarInitAction;
+            let variables: any = executionState.variables;
+            variables[varInitAction.varName] = varInitAction.initialValue;
             setExecutionState({...executionState, variables});
         } else if (action instanceof PrintAction) {
             let printAction = action as PrintAction;
@@ -119,7 +123,6 @@ function App() {
         setNextActionIndex(0);
         setFatalError(false);
         var sourceCode = monacoEditor.getModel()?.getValue()!!;
-        var sourceCode = monacoEditor.getModel()?.getValue()!!;
         setExecuting(true);
         new Promise<Action[]>((resolve, reject) => {
             let executor = new JavaScriptExecutor(sourceCode, errorHandler);
@@ -128,6 +131,7 @@ function App() {
             setActions(result);
             setCodeExecuted(true);
             setExecuting(false);
+            console.log(result);
         })
         setExecutionState({variables: {}, line: 1});
         setCode(sourceCode);
@@ -186,10 +190,10 @@ function App() {
             return "Assign " + assingmentAction.value + " to variable " + assingmentAction.varName;
         } else if (action instanceof VarDecAction) {
             let varDecAction = action as VarDecAction;
-            let commandText = "Declare variable " + varDecAction.varName;
-            if (varDecAction.initialValue !== undefined)
-                commandText += " with initial value = " + varDecAction.initialValue;
-            return commandText;
+            return "Declare variable " + varDecAction.varName;
+        } else if (action instanceof VarInitAction) {
+            let initAction = action as VarInitAction;
+            return "Initialize variable " + initAction.varName + " with " + initAction.initialValue;
         } else if (action instanceof PrintAction) {
             return "Log the message to console: " + (action as PrintAction).data;
         } else if (action instanceof EvaluateExpressionAction) {
@@ -209,6 +213,10 @@ function App() {
             <td>{val}</td>
         </tr>);
     });
+
+    let onCodeChanged = (value:string) => {
+        setCode(value);
+    };
 
     return (
 
@@ -234,6 +242,7 @@ function App() {
                                 options={{minimap: {enabled: false}, lineHeight, lineDecorationsWidth: 0}}
                                 width={'100%'}
                                 value={code}
+                                onChange={onCodeChanged}
                                 editorDidMount={editorDidMount}
                             />
                         </div>
@@ -309,8 +318,10 @@ function App() {
                                     <Button style={{width: 120}} onClick={onResetClicked}>Reset All</Button>
                                     {nextActionIndex >= actions.length ? null :
                                         <>
-                                            <Button style={{width: 120}} disabled={playing} onClick={onNextClicked}>Next</Button>
-                                            <Button style={{width: 120}} onClick={onPlayClicked}>{playing ? "Pause" : "Play"}</Button>
+                                            <Button style={{width: 120}} disabled={playing}
+                                                    onClick={onNextClicked}>Next</Button>
+                                            <Button style={{width: 120}}
+                                                    onClick={onPlayClicked}>{playing ? "Pause" : "Play"}</Button>
                                         </>
                                     }
                                 </ButtonGroup>

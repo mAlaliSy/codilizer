@@ -12,6 +12,7 @@ import AssignmentAction from "../../actions/AssignmentAction";
 import VarDecAction from "../../actions/VarDecAction";
 import PrintAction from "../../actions/PrintAction";
 import DeleteVariableAction from "../../actions/DeleteVariableAction";
+import VarInitAction from "../../actions/VarInitAction";
 
 const antlr4 = require('antlr4/index');
 const ECMAScriptLexer = require("./parser/ECMAScriptLexer");
@@ -403,12 +404,13 @@ export default class JavaScriptExecutor extends ECMAScriptVisitor.ECMAScriptVisi
 
     visitVariableDeclaration(ctx: any): any {
         let varName = ctx.Identifier().getText();
+        this.actions.push(new VarDecAction(ctx.start.line, varName));
         let value = undefined;
         if (ctx.initialiser()) {
             value = this.getExpressionValue(ctx.initialiser().singleExpression());
+            this.actions.push(new VarInitAction(ctx.start.line, varName, value));
         }
         this.activeSymbolTable.defineVariable(varName, value);
-        this.actions.push(new VarDecAction(ctx.start.line, varName, value));
     }
 
     visitVariableDeclarationList(ctx: any): any {
