@@ -53,7 +53,7 @@ function App() {
         }
     }, [nextActionIndex, playing]);
 
-    let [code, setCode] = useState("var x = 'GREAT!';\nvar test = 5;\nvar post = test--;\nfor(var i = 1; i <= 2; i = i + 1){\n\tvar y = x + i;\n\tconsole.log('Test ' + x);\n}");
+    let [code, setCode] = useState("var x = 'GREAT!';\nvar test = 5;\nvar post = test--;\nfor(var i = 1; i <= 2; ++i){\n\tvar y = x + i;\n\tconsole.log('Test ' + x);\n}");
 
     let editorDidMount = (ed: editor.IStandaloneCodeEditor, mon: any) => {
         ed.focus();

@@ -296,6 +296,8 @@ export default class JavaScriptExecutor extends ECMAScriptVisitor.ECMAScriptVisi
         else if (ctx instanceof Parser.ECMAScriptParser.MemberDotExpressionContext) return this.visitMemberDotExpression(ctx);
         else if (ctx instanceof Parser.ECMAScriptParser.PostDecreaseExpressionContext) return this.visitPostDecreaseExpression(ctx);
         else if (ctx instanceof Parser.ECMAScriptParser.PostIncrementExpressionContext) return this.visitPostIncrementExpression(ctx);
+        else if (ctx instanceof Parser.ECMAScriptParser.PreDecreaseExpressionContext) return this.visitPreDecreaseExpression(ctx);
+        else if (ctx instanceof Parser.ECMAScriptParser.PreIncrementExpressionContext) return this.visitPreIncrementExpression(ctx);
         else {
             console.log(ctx);
             throw new Error("Unhandled expression type: " + typeof (ctx));
@@ -503,9 +505,10 @@ export default class JavaScriptExecutor extends ECMAScriptVisitor.ECMAScriptVisi
         });
         this.actions.push(new PrintAction(ctx.start.line, argumentValues));
     }
-    visitPostDecreaseExpression(ctx:any) : ExpressionResult {
+
+    visitPostDecreaseExpression(ctx: any): ExpressionResult {
         let expRes = this.visitSingleExpression(ctx.singleExpression());
-        if(expRes.type !== ExpressionResultType.VARIABLE){
+        if (expRes.type !== ExpressionResultType.VARIABLE) {
             this.errorHandler.handleError(new ExecutionError(true, "Only variables can be used with postfix decreasement!"));
             throw new Error();
         }
@@ -514,19 +517,42 @@ export default class JavaScriptExecutor extends ECMAScriptVisitor.ECMAScriptVisi
         this.actions.push(new UnaryIncDecAction(ctx.start.line, expRes.value, false, false));
         return new ExpressionResult(ExpressionResultType.VALUE, val);
     }
-    visitPostIncrementExpression(ctx: any) : ExpressionResult {
+
+    visitPostIncrementExpression(ctx: any): ExpressionResult {
         let expRes = this.visitSingleExpression(ctx.singleExpression());
-        if(expRes.type !== ExpressionResultType.VARIABLE){
+        if (expRes.type !== ExpressionResultType.VARIABLE) {
             this.errorHandler.handleError(new ExecutionError(true, "Only variables can be used with postfix increasement!"));
             throw new Error();
         }
         let val = this.getVarValueOrError(expRes.value).value;
         this.activeSymbolTable.updateOrCreate(expRes.value, val + 1);
-        this.actions.push(new UnaryIncDecAction(ctx.start.line, expRes.value, false, false));
+        this.actions.push(new UnaryIncDecAction(ctx.start.line, expRes.value, true, false));
         return new ExpressionResult(ExpressionResultType.VALUE, val);
     }
-    visitPreDecreaseExpression(ctx: any) : any {}
-    visitPreIncrementExpression(ctx: any) : any {}
+
+    visitPreDecreaseExpression(ctx: any): any {
+        let expRes = this.visitSingleExpression(ctx.singleExpression());
+        if (expRes.type !== ExpressionResultType.VARIABLE) {
+            this.errorHandler.handleError(new ExecutionError(true, "Only variables can be used with prefix decrement!"));
+            throw new Error();
+        }
+        let val = this.getVarValueOrError(expRes.value).value;
+        this.activeSymbolTable.updateOrCreate(expRes.value, val - 1);
+        this.actions.push(new UnaryIncDecAction(ctx.start.line, expRes.value, false, true));
+        return new ExpressionResult(ExpressionResultType.VALUE, val - 1);
+    }
+
+    visitPreIncrementExpression(ctx: any): any {
+        let expRes = this.visitSingleExpression(ctx.singleExpression());
+        if (expRes.type !== ExpressionResultType.VARIABLE) {
+            this.errorHandler.handleError(new ExecutionError(true, "Only variables can be used with prefix increment!"));
+            throw new Error();
+        }
+        let val = this.getVarValueOrError(expRes.value).value;
+        this.activeSymbolTable.updateOrCreate(expRes.value, val + 1);
+        this.actions.push(new UnaryIncDecAction(ctx.start.line, expRes.value, true, true));
+        return new ExpressionResult(ExpressionResultType.VALUE, val + 1);
+    }
 
     // visitArgumentList(ctx: ArgumentListContext) : any {}
     // visitArguments(ctx: ArgumentsContext) : any {}
