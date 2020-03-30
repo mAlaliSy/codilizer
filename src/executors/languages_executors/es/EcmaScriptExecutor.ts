@@ -13,6 +13,7 @@ import VarDecAction from "../../actions/VarDecAction";
 import PrintAction from "../../actions/PrintAction";
 import DeleteVariableAction from "../../actions/DeleteVariableAction";
 import VarInitAction from "../../actions/VarInitAction";
+import UnaryIncDecAction from "../../actions/UnaryIncDecAction";
 
 const antlr4 = require('antlr4/index');
 const ECMAScriptLexer = require("./parser/ECMAScriptLexer");
@@ -293,6 +294,8 @@ export default class JavaScriptExecutor extends ECMAScriptVisitor.ECMAScriptVisi
         else if (ctx instanceof Parser.ECMAScriptParser.IdentifierExpressionContext) return this.visitIdentifierExpression(ctx);
         else if (ctx instanceof Parser.ECMAScriptParser.ArgumentsExpressionContext) return this.visitArgumentsExpression(ctx);
         else if (ctx instanceof Parser.ECMAScriptParser.MemberDotExpressionContext) return this.visitMemberDotExpression(ctx);
+        else if (ctx instanceof Parser.ECMAScriptParser.PostDecreaseExpressionContext) return this.visitPostDecreaseExpression(ctx);
+        else if (ctx instanceof Parser.ECMAScriptParser.PostIncrementExpressionContext) return this.visitPostIncrementExpression(ctx);
         else {
             console.log(ctx);
             throw new Error("Unhandled expression type: " + typeof (ctx));
@@ -405,8 +408,6 @@ export default class JavaScriptExecutor extends ECMAScriptVisitor.ECMAScriptVisi
 
     visitVariableDeclaration(ctx: any): any {
         let varName = ctx.Identifier().getText();
-        console.log("I AM ST** ADDING THIS VAR:");
-        console.log(ctx.start);
         this.actions.push(new VarDecAction(ctx.start.line, varName));
         let value = undefined;
         if (ctx.initialiser()) {
@@ -502,6 +503,30 @@ export default class JavaScriptExecutor extends ECMAScriptVisitor.ECMAScriptVisi
         });
         this.actions.push(new PrintAction(ctx.start.line, argumentValues));
     }
+    visitPostDecreaseExpression(ctx:any) : ExpressionResult {
+        let expRes = this.visitSingleExpression(ctx.singleExpression());
+        if(expRes.type !== ExpressionResultType.VARIABLE){
+            this.errorHandler.handleError(new ExecutionError(true, "Only variables can be used with postfix decreasement!"));
+            throw new Error();
+        }
+        let val = this.getVarValueOrError(expRes.value).value;
+        this.activeSymbolTable.updateOrCreate(expRes.value, val - 1);
+        this.actions.push(new UnaryIncDecAction(ctx.start.line, expRes.value, false, false));
+        return new ExpressionResult(ExpressionResultType.VALUE, val);
+    }
+    visitPostIncrementExpression(ctx: any) : ExpressionResult {
+        let expRes = this.visitSingleExpression(ctx.singleExpression());
+        if(expRes.type !== ExpressionResultType.VARIABLE){
+            this.errorHandler.handleError(new ExecutionError(true, "Only variables can be used with postfix increasement!"));
+            throw new Error();
+        }
+        let val = this.getVarValueOrError(expRes.value).value;
+        this.activeSymbolTable.updateOrCreate(expRes.value, val + 1);
+        this.actions.push(new UnaryIncDecAction(ctx.start.line, expRes.value, false, false));
+        return new ExpressionResult(ExpressionResultType.VALUE, val);
+    }
+    visitPreDecreaseExpression(ctx: any) : any {}
+    visitPreIncrementExpression(ctx: any) : any {}
 
     // visitArgumentList(ctx: ArgumentListContext) : any {}
     // visitArguments(ctx: ArgumentsContext) : any {}
@@ -512,10 +537,7 @@ export default class JavaScriptExecutor extends ECMAScriptVisitor.ECMAScriptVisi
     // visitAssignmentOperatorExpression(ctx: AssignmentOperatorExpressionContext) : any {
     //     ctx.assignmentOperator().
     // }
-    // visitPostDecreaseExpression(ctx: PostDecreaseExpressionContext) : any {}
-    // visitPostIncrementExpression(ctx: PostIncrementExpressionContext) : any {}
-    // visitPreDecreaseExpression(ctx: PreDecreaseExpressionContext) : any {}
-    // visitPreIncrementExpression(ctx: PreIncrementExpressionContext) : any {}
+
 
     // visitArrayLiteral(ctx: ArrayLiteralContext) : any {}
     // visitArrayLiteralExpression(ctx: ArrayLiteralExpressionContext) : any {}

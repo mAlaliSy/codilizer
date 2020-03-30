@@ -13,6 +13,7 @@ import PrintAction from "./executors/actions/PrintAction";
 import EvaluateExpressionAction from "./executors/actions/EvaluateExpressionAction";
 import JumpAction from "./executors/actions/JumpAction";
 import VarInitAction from "./executors/actions/VarInitAction";
+import UnaryIncDecAction from "./executors/actions/UnaryIncDecAction";
 
 
 interface ExecutionState {
@@ -52,7 +53,7 @@ function App() {
         }
     }, [nextActionIndex, playing]);
 
-    let [code, setCode] = useState("var x = 'GREAT!';\nfor(var i = 1; i <= 2; i = i + 1){\n\tvar y = x + i;\n\tconsole.log('Test ' + x);\n}");
+    let [code, setCode] = useState("var x = 'GREAT!';\nvar test = 5;\nvar post = test--;\nfor(var i = 1; i <= 2; i = i + 1){\n\tvar y = x + i;\n\tconsole.log('Test ' + x);\n}");
 
     let editorDidMount = (ed: editor.IStandaloneCodeEditor, mon: any) => {
         ed.focus();
@@ -90,14 +91,19 @@ function App() {
             if (error.fatal) setFatalError(true);
         }
     };
+    let updateVar = (varName:string, val:any)=>{
+        let variables: any = executionState.variables;
+        variables[varName] = val;
+        setExecutionState({...executionState, variables});
+    };
+
     let executeNextAction = () => {
         if (nextActionIndex >= actions.length) return;
         let action = actions[nextActionIndex - 1];
+        setExecutionState({...executionState, line: action.lineNumber});
         if (action instanceof AssignmentAction) {
             let assignmentAction = action as AssignmentAction;
-            let variables: any = executionState.variables;
-            variables[assignmentAction.varName] = assignmentAction.value;
-            setExecutionState({...executionState, variables});
+            updateVar(assignmentAction.varName, assignmentAction.value);
         } else if (action instanceof VarDecAction) {
             let varDecAction = action as VarDecAction;
             let variables: any = executionState.variables;
@@ -115,6 +121,9 @@ function App() {
             // DO NOTHING
         } else if (action instanceof JumpAction) {
             setExecutionState({...executionState, line: action.lineNumber});
+        } else if(action instanceof UnaryIncDecAction) {
+            let oldVal = executionState.variables[action.varName];
+            updateVar(action.varName, oldVal +(action.isInc ? 1 : -1));
         }
     };
     let onExecuteClicked = () => {
@@ -201,6 +210,15 @@ function App() {
             return "Evaluating expression: " + expressionAction.expression + " = " + expressionAction.result;
         } else if (action instanceof JumpAction) {
             return "Jump to line: " + action.lineNumber;
+        } else if(action instanceof UnaryIncDecAction){
+            let message = "";
+            if(action.isPre)
+                message += "Pre-";
+            else message += "Post-";
+            if(action.isInc) message += "increase";
+            else message += "decrease";
+            message += " variable " + action.varName;
+            return message;
         }
 
         return action.message;
