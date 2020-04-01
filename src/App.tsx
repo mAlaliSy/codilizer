@@ -3,7 +3,7 @@ import './App.css';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import MonacoEditor from "react-monaco-editor";
 import {editor} from "monaco-editor";
-import {Button, ButtonGroup, Col, Container, Row, Spinner, Table, Toast} from "react-bootstrap";
+import {Button, ButtonGroup, Col, Container, Jumbotron, Row, Spinner, Table, Toast} from "react-bootstrap";
 import JavaScriptExecutor from "./executors/languages_executors/es/EcmaScriptExecutor";
 import Error from "./executors/errorhandler/Error";
 import Action from "./executors/actions/Action";
@@ -31,7 +31,6 @@ function App() {
 
     let [executionState, setExecutionState] = useState<ExecutionState>({line: -1, variables: {}});
     let [codeExecuted, setCodeExecuted] = useState(false);
-    let [fatalError, setFatalError] = useState(false);
     let [nextActionIndex, setNextActionIndex] = useState(0);
     let [errors, setErrors] = useState<ExecutionError[]>([]);
     let [actions, setActions] = useState(new Array<Action>());
@@ -133,9 +132,7 @@ function App() {
     };
     let onExecuteClicked = () => {
         if (monacoEditor.getModel()?.getValue() == null) return;
-        setErrors([]);
         setNextActionIndex(0);
-        setFatalError(false);
         var sourceCode = monacoEditor.getModel()?.getValue()!!;
         setExecuting(true);
         new Promise<Action[]>((resolve, reject) => {
@@ -246,6 +243,15 @@ function App() {
     return (
 
         <Container>
+            <Jumbotron style={{marginTop: 30}}>
+                <h1>Codilizer!</h1>
+                <p>
+                    <b>Codilizer</b> is a simple code visualizer for JavaScript. It visualizes the execution of simple
+                    statements. See the list at the bottom for supported statements/expressions and for more details.
+                </p>
+                <Button onClick={() => window.open("https://github.com/mAlaliSy/codilizer", "_blank")}
+                        variant="primary">Checkout Github repo</Button>
+            </Jumbotron>
             <Row className={"justify-content-center app-container"}>
                 <Col sm={12} md={6}>
                     <div className={"code-container"}>
@@ -360,8 +366,9 @@ function App() {
                     aria-live="polite"
                     aria-atomic="true"
                     style={{
-                        position: 'relative',
-                        minHeight: '100px',
+                        position: 'absolute',
+                        top: 20,
+                        right: 20
                     }}
                 >
                     <Toast show={showError} onClose={() => setShowError(false)}>
@@ -377,6 +384,32 @@ function App() {
                         </Toast.Body>
                     </Toast>
                 </div> : null}
+
+            <Jumbotron>
+                The supported statements for now are only:
+                <ul>
+                    <li>Variable declaration with var keyword - only var</li>
+                    <li>if statements</li>
+                    <li>while loop statement</li>
+                    <li>for loop statement</li>
+                    <li>Nearly all expressions are supported, except for assigment operators only simple one is
+                        supported
+                    </li>
+                </ul>
+                <hr/>
+                <p>
+                    Used tools:
+                    <br />
+                    <ul>
+                        <li><a href={"https://www.antlr.org/"} target={"_blank"}>ANTLR</a> for generating the JavaScript parser</li>
+                        <li><a href={"https://microsoft.github.io/monaco-editor/"} target={"_blank"}>Monaco editor</a> the
+                            text editor that powers VS Code</li>
+                    </ul>
+                </p>
+
+            </Jumbotron>
+
+
         </Container>
 
     );
