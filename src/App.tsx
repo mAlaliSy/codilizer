@@ -3,7 +3,7 @@ import './App.css';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import MonacoEditor from "react-monaco-editor";
 import {editor} from "monaco-editor";
-import {Button, ButtonGroup, Col, Container, Row, Spinner, Table} from "react-bootstrap";
+import {Button, ButtonGroup, Col, Container, Row, Spinner, Table, Toast} from "react-bootstrap";
 import JavaScriptExecutor from "./executors/languages_executors/es/EcmaScriptExecutor";
 import Error from "./executors/errorhandler/Error";
 import Action from "./executors/actions/Action";
@@ -14,6 +14,7 @@ import EvaluateExpressionAction from "./executors/actions/EvaluateExpressionActi
 import JumpAction from "./executors/actions/JumpAction";
 import VarInitAction from "./executors/actions/VarInitAction";
 import UnaryIncDecAction from "./executors/actions/UnaryIncDecAction";
+import ExecutionError from "./executors/errorhandler/Error";
 
 
 interface ExecutionState {
@@ -32,11 +33,13 @@ function App() {
     let [codeExecuted, setCodeExecuted] = useState(false);
     let [fatalError, setFatalError] = useState(false);
     let [nextActionIndex, setNextActionIndex] = useState(0);
-    let [errors, setErrors] = useState([]);
+    let [errors, setErrors] = useState<ExecutionError[]>([]);
     let [actions, setActions] = useState(new Array<Action>());
     let [consoleContent, setConsoleContent] = useState("");
     let [executing, setExecuting] = useState(false);
     let [playing, setPlaying] = useState(false);
+    let [showError, setShowError] = useState(false);
+
     // const playingRef = useRef(playing);
     // playingRef.current = playing;
     let indexRef = useRef(nextActionIndex);
@@ -88,10 +91,12 @@ function App() {
 
     let errorHandler = new class ErrorHandler {
         handleError(error: Error): void {
-            if (error.fatal) setFatalError(true);
+            if (error.fatal) resetAll();
+            setShowError(true);
+            setErrors([...errors, error]);
         }
-    };
-    let updateVar = (varName:string, val:any)=>{
+    }();
+    let updateVar = (varName: string, val: any) => {
         let variables: any = executionState.variables;
         variables[varName] = val;
         setExecutionState({...executionState, variables});
@@ -121,9 +126,9 @@ function App() {
             // DO NOTHING
         } else if (action instanceof JumpAction) {
             setExecutionState({...executionState, line: action.lineNumber});
-        } else if(action instanceof UnaryIncDecAction) {
+        } else if (action instanceof UnaryIncDecAction) {
             let oldVal = executionState.variables[action.varName];
-            updateVar(action.varName, oldVal +(action.isInc ? 1 : -1));
+            updateVar(action.varName, oldVal + (action.isInc ? 1 : -1));
         }
     };
     let onExecuteClicked = () => {
@@ -181,13 +186,15 @@ function App() {
         //     setExecutionState({...executionState, line: actions[updatedNextAction].lineNumber})
     };
 
-    let onResetClicked = () => {
-        setCodeExecuted(false)
+    let resetAll = () => {
+        setCodeExecuted(false);
         setExecutionState({line: 0, variables: {}});
         setActions([]);
         setNextActionIndex(0);
         setPlaying(false);
         setConsoleContent("");
+        setErrors([]);
+        setShowError(false);
     };
 
     let getNextCommandText = () => {
@@ -210,12 +217,12 @@ function App() {
             return "Evaluating expression: " + expressionAction.expression + " = " + expressionAction.result;
         } else if (action instanceof JumpAction) {
             return "Jump to line: " + action.lineNumber;
-        } else if(action instanceof UnaryIncDecAction){
+        } else if (action instanceof UnaryIncDecAction) {
             let message = "";
-            if(action.isPre)
+            if (action.isPre)
                 message += "Pre-";
             else message += "Post-";
-            if(action.isInc) message += "increase";
+            if (action.isInc) message += "increase";
             else message += "decrease";
             message += " variable " + action.varName;
             return message;
@@ -232,7 +239,7 @@ function App() {
         </tr>);
     });
 
-    let onCodeChanged = (value:string) => {
+    let onCodeChanged = (value: string) => {
         setCode(value);
     };
 
@@ -333,7 +340,7 @@ function App() {
                         {
                             codeExecuted ?
                                 <ButtonGroup className={"m-3"}>
-                                    <Button style={{width: 120}} onClick={onResetClicked}>Reset All</Button>
+                                    <Button style={{width: 120}} onClick={resetAll}>Reset All</Button>
                                     {nextActionIndex >= actions.length ? null :
                                         <>
                                             <Button style={{width: 120}} disabled={playing}
@@ -348,6 +355,28 @@ function App() {
                     </Row>
                 </Col>
             </Row>
+            {showError ?
+                <div
+                    aria-live="polite"
+                    aria-atomic="true"
+                    style={{
+                        position: 'relative',
+                        minHeight: '100px',
+                    }}
+                >
+                    <Toast show={showError} onClose={() => setShowError(false)}>
+                        <Toast.Header>
+                            <strong className="mr-auto">Errors!</strong>
+                        </Toast.Header>
+                        <Toast.Body>
+                            {
+                                errors.map(err => {
+                                    return <p>{err.message}</p>
+                                })
+                            }
+                        </Toast.Body>
+                    </Toast>
+                </div> : null}
         </Container>
 
     );

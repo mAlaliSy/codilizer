@@ -62,7 +62,11 @@ export default class JavaScriptExecutor extends ECMAScriptVisitor.ECMAScriptVisi
 
     executeAll(): Array<Action> {
         this.actions = new Array<Action>();
-        this.visitStatementList(this.parser.statementList());
+        try {
+            this.visitStatementList(this.parser.statementList());
+        }catch (e) {
+            this.errorHandler.handleError(new ExecutionError(true, "Unexpected error occurred!"));
+        }
         return this.actions;
     }
 
@@ -477,9 +481,9 @@ export default class JavaScriptExecutor extends ECMAScriptVisitor.ECMAScriptVisi
         } else if (iterationStatement instanceof Parser.ECMAScriptParser.ForStatementContext) {
             this.visitForStatement(iterationStatement)
         } else if (iterationStatement instanceof Parser.ECMAScriptParser.ForVarInStatementContext) {
-
+            this.errorHandler.handleError(new ExecutionError(false, "For in is not supported"))
         } else if (iterationStatement instanceof Parser.ECMAScriptParser.ForInStatementContext) {
-
+            this.errorHandler.handleError(new ExecutionError(false, "For in is not supported"))
         }
     }
 
