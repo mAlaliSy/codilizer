@@ -4,7 +4,7 @@ self.__precacheManifest = (self.__precacheManifest || []).concat([
     "url": "/codilizer/editor.worker.js"
   },
   {
-    "revision": "0ef844e2f0eaab77d0a15bedc4cb5b09",
+    "revision": "23863f0ae1ff4ee60760220dcd901260",
     "url": "/codilizer/index.html"
   },
   {
@@ -12,7 +12,7 @@ self.__precacheManifest = (self.__precacheManifest || []).concat([
     "url": "/codilizer/static/css/2.21b19138.chunk.css"
   },
   {
-    "revision": "bf26d655bf297d64a3ff",
+    "revision": "5cf8674bf546816200af",
     "url": "/codilizer/static/css/main.2125bff9.chunk.css"
   },
   {
@@ -28,8 +28,8 @@ self.__precacheManifest = (self.__precacheManifest || []).concat([
     "url": "/codilizer/static/js/3.e07c0643.chunk.js"
   },
   {
-    "revision": "bf26d655bf297d64a3ff",
-    "url": "/codilizer/static/js/main.168d04d0.chunk.js"
+    "revision": "5cf8674bf546816200af",
+    "url": "/codilizer/static/js/main.2e404634.chunk.js"
   },
   {
     "revision": "5f85d6584a7a147d4009",

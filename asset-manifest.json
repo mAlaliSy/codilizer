@@ -1,8 +1,8 @@
 {
   "files": {
     "main.css": "/codilizer/static/css/main.2125bff9.chunk.css",
-    "main.js": "/codilizer/static/js/main.168d04d0.chunk.js",
-    "main.js.map": "/codilizer/static/js/main.168d04d0.chunk.js.map",
+    "main.js": "/codilizer/static/js/main.2e404634.chunk.js",
+    "main.js.map": "/codilizer/static/js/main.2e404634.chunk.js.map",
     "runtime-main.js": "/codilizer/static/js/runtime-main.5069d04e.js",
     "runtime-main.js.map": "/codilizer/static/js/runtime-main.5069d04e.js.map",
     "static/css/2.21b19138.chunk.css": "/codilizer/static/css/2.21b19138.chunk.css",
@@ -13,7 +13,7 @@
     "editor.worker.js": "/codilizer/editor.worker.js",
     "editor.worker.js.map": "/codilizer/editor.worker.js.map",
     "index.html": "/codilizer/index.html",
-    "precache-manifest.160fdae24e6f219f05fb1160d9ae6dc5.js": "/codilizer/precache-manifest.160fdae24e6f219f05fb1160d9ae6dc5.js",
+    "precache-manifest.aa0b41376386852ea03e27ef4c9b4e77.js": "/codilizer/precache-manifest.aa0b41376386852ea03e27ef4c9b4e77.js",
     "service-worker.js": "/codilizer/service-worker.js",
     "static/css/2.21b19138.chunk.css.map": "/codilizer/static/css/2.21b19138.chunk.css.map",
     "static/css/main.2125bff9.chunk.css.map": "/codilizer/static/css/main.2125bff9.chunk.css.map",
@@ -25,6 +25,6 @@
     "static/css/2.21b19138.chunk.css",
     "static/js/2.57b13e44.chunk.js",
     "static/css/main.2125bff9.chunk.css",
-    "static/js/main.168d04d0.chunk.js"
+    "static/js/main.2e404634.chunk.js"
   ]
 }
