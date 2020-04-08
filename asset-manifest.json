@@ -1,30 +1,30 @@
 {
   "files": {
-    "main.css": "/malalisy.github.io/codilizer/static/css/main.2125bff9.chunk.css",
-    "main.js": "/malalisy.github.io/codilizer/static/js/main.b708869b.chunk.js",
-    "main.js.map": "/malalisy.github.io/codilizer/static/js/main.b708869b.chunk.js.map",
-    "runtime-main.js": "/malalisy.github.io/codilizer/static/js/runtime-main.dce19e33.js",
-    "runtime-main.js.map": "/malalisy.github.io/codilizer/static/js/runtime-main.dce19e33.js.map",
-    "static/css/2.714e8bc9.chunk.css": "/malalisy.github.io/codilizer/static/css/2.714e8bc9.chunk.css",
-    "static/js/2.8f1fbe86.chunk.js": "/malalisy.github.io/codilizer/static/js/2.8f1fbe86.chunk.js",
-    "static/js/2.8f1fbe86.chunk.js.map": "/malalisy.github.io/codilizer/static/js/2.8f1fbe86.chunk.js.map",
-    "static/js/3.e07c0643.chunk.js": "/malalisy.github.io/codilizer/static/js/3.e07c0643.chunk.js",
-    "static/js/3.e07c0643.chunk.js.map": "/malalisy.github.io/codilizer/static/js/3.e07c0643.chunk.js.map",
-    "editor.worker.js": "/malalisy.github.io/codilizer/editor.worker.js",
-    "editor.worker.js.map": "/malalisy.github.io/codilizer/editor.worker.js.map",
-    "index.html": "/malalisy.github.io/codilizer/index.html",
-    "precache-manifest.9f1f2ce63bc570612ce7f82e68e5b59c.js": "/malalisy.github.io/codilizer/precache-manifest.9f1f2ce63bc570612ce7f82e68e5b59c.js",
-    "service-worker.js": "/malalisy.github.io/codilizer/service-worker.js",
-    "static/css/2.714e8bc9.chunk.css.map": "/malalisy.github.io/codilizer/static/css/2.714e8bc9.chunk.css.map",
-    "static/css/main.2125bff9.chunk.css.map": "/malalisy.github.io/codilizer/static/css/main.2125bff9.chunk.css.map",
-    "static/js/2.8f1fbe86.chunk.js.LICENSE.txt": "/malalisy.github.io/codilizer/static/js/2.8f1fbe86.chunk.js.LICENSE.txt",
-    "static/media/codicon.css": "/malalisy.github.io/codilizer/static/media/codicon.a609dc0f.ttf"
+    "main.css": "/codilizer/static/css/main.2125bff9.chunk.css",
+    "main.js": "/codilizer/static/js/main.168d04d0.chunk.js",
+    "main.js.map": "/codilizer/static/js/main.168d04d0.chunk.js.map",
+    "runtime-main.js": "/codilizer/static/js/runtime-main.5069d04e.js",
+    "runtime-main.js.map": "/codilizer/static/js/runtime-main.5069d04e.js.map",
+    "static/css/2.21b19138.chunk.css": "/codilizer/static/css/2.21b19138.chunk.css",
+    "static/js/2.57b13e44.chunk.js": "/codilizer/static/js/2.57b13e44.chunk.js",
+    "static/js/2.57b13e44.chunk.js.map": "/codilizer/static/js/2.57b13e44.chunk.js.map",
+    "static/js/3.e07c0643.chunk.js": "/codilizer/static/js/3.e07c0643.chunk.js",
+    "static/js/3.e07c0643.chunk.js.map": "/codilizer/static/js/3.e07c0643.chunk.js.map",
+    "editor.worker.js": "/codilizer/editor.worker.js",
+    "editor.worker.js.map": "/codilizer/editor.worker.js.map",
+    "index.html": "/codilizer/index.html",
+    "precache-manifest.160fdae24e6f219f05fb1160d9ae6dc5.js": "/codilizer/precache-manifest.160fdae24e6f219f05fb1160d9ae6dc5.js",
+    "service-worker.js": "/codilizer/service-worker.js",
+    "static/css/2.21b19138.chunk.css.map": "/codilizer/static/css/2.21b19138.chunk.css.map",
+    "static/css/main.2125bff9.chunk.css.map": "/codilizer/static/css/main.2125bff9.chunk.css.map",
+    "static/js/2.57b13e44.chunk.js.LICENSE.txt": "/codilizer/static/js/2.57b13e44.chunk.js.LICENSE.txt",
+    "static/media/codicon.css": "/codilizer/static/media/codicon.a609dc0f.ttf"
   },
   "entrypoints": [
-    "static/js/runtime-main.dce19e33.js",
-    "static/css/2.714e8bc9.chunk.css",
-    "static/js/2.8f1fbe86.chunk.js",
+    "static/js/runtime-main.5069d04e.js",
+    "static/css/2.21b19138.chunk.css",
+    "static/js/2.57b13e44.chunk.js",
     "static/css/main.2125bff9.chunk.css",
-    "static/js/main.b708869b.chunk.js"
+    "static/js/main.168d04d0.chunk.js"
   ]
 }
