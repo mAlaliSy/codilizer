@@ -39,8 +39,6 @@ function App() {
     let [playing, setPlaying] = useState(false);
     let [showError, setShowError] = useState(false);
 
-    // const playingRef = useRef(playing);
-    // playingRef.current = playing;
     let indexRef = useRef(nextActionIndex);
     indexRef.current = nextActionIndex;
     useEffect(() => {
@@ -55,38 +53,23 @@ function App() {
         }
     }, [nextActionIndex, playing]);
 
-    let [code, setCode] = useState("var x = 'GREAT!';\nvar test = 5;\nvar post = test--;\nfor(var i = 1; i <= 2; ++i){\n\tvar y = x + i;\n\tconsole.log('Test ' + x);\n}");
+    useEffect(() => {
+        document.title = "Codilizer | Code execution visualizer"
+    }, []);
+
+    let [code, setCode] = useState("for(var i = 1; i <= 5; ++i){\n" +
+        "\tif(i%2 == 0)\n" +
+        "\t\tconsole.log('Hello ' + i);\n" +
+        "}");
 
     let editorDidMount = (ed: editor.IStandaloneCodeEditor, mon: any) => {
         ed.focus();
 
         monacoEditor = ed;
-        // lineHeight = editor.getRawOptions().lineHeight!!;
         monaco = mon;
 
     };
 
-    // useEffect(() => {
-    //     if (!codeExecuted) return;
-    //     console.log("Update Decorator");
-    //     decorator = editor?.deltaDecorations(decorator, [
-    //         {
-    //             range: new monaco.Range(executionState.line, 1, executionState.line, 1),
-    //             options: {
-    //                 isWholeLine: true,
-    //                 className: 'lineDecorator',
-    //                 glyphMarginClassName: 'lineDecorator'
-    //             }
-    //         }, {
-    //             range: new monaco.Range(executionState.line, 1, executionState.line, 1),
-    //             options: {
-    //                 isWholeLine: true,
-    //                 className: 'lineDecorator',
-    //                 glyphMarginClassName: 'lineDecorator'
-    //             }
-    //         },
-    //     ]);
-    // }, [executionState.line]);
 
     let errorHandler = new class ErrorHandler {
         handleError(error: Error): void {
@@ -104,6 +87,7 @@ function App() {
     let executeNextAction = () => {
         if (nextActionIndex >= actions.length) return;
         let action = actions[nextActionIndex - 1];
+        if(!action) return;
         setExecutionState({...executionState, line: action.lineNumber});
         if (action instanceof AssignmentAction) {
             let assignmentAction = action as AssignmentAction;
@@ -150,19 +134,6 @@ function App() {
 
     let onPlayClicked = () => {
         setPlaying(!playing);
-        // if (playing) {
-        //     setPlaying(false);
-        // } else {
-        //     setPlaying(true);
-        //     let playCallback = () => {
-        //         console.log("Playing: " + nextActionIndex);
-        //         if (!playingRef.current || nextActionIndex >= actions.length) return;
-        //         console.log("N")
-        //         onNextClicked();
-        //         setTimeout(playCallback, PLAYING_SPEED);
-        //     };
-        //     setTimeout(playCallback, PLAYING_SPEED);
-        // }
     };
 
     let onNextUpdated = () => {
@@ -174,13 +145,6 @@ function App() {
 
     let onNextClicked = () => {
         setNextActionIndex(nextActionIndex + 1);
-        // if (nextActionIndex > actions.length) return;
-        // console.log("on next");
-        // executeNextAction();
-        // let updatedNextAction = nextActionIndex + 1;
-        // setNextActionIndex(updatedNextAction);
-        // if (updatedNextAction < actions.length)
-        //     setExecutionState({...executionState, line: actions[updatedNextAction].lineNumber})
     };
 
     let resetAll = () => {
@@ -393,7 +357,7 @@ function App() {
                     <li>while loop statement</li>
                     <li>for loop statement</li>
                     <li>Nearly all expressions are supported, except for assigment operators only simple one is
-                        supported
+                        supported ("+=","-=", "*=", ...etc is not supported)
                     </li>
                 </ul>
                 <hr/>
