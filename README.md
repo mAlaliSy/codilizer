@@ -1,5 +1,8 @@
 Codilizer is a simple code visualizer for JavaScript. It visualizes the execution of simple statements.
 
+### How can I use it?
+You can try it out from [here](https://malalisy.github.io/codilizer/)
+
 ### Supported statements:
 * Variable declaration with var keyword - only var
 * if statements
